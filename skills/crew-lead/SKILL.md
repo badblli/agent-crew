@@ -32,7 +32,8 @@ Paths: read `.crew/config.json` (`planDir`, `stateDir`). Scripts: `.crew/bin/` (
 6. **Ship:** commit in the agent's worktree with a Conventional Commit message (mention the agent
    name), push, `gh pr create` to the default branch, then `board.py step <wp> pr_open`. When CI is
    green and the PR is clean, merge it **right away**, delete the branch, `board.py step <wp> merged`,
-   and tell the user what landed. Do not leave approved work sitting in open PRs.
+   and tell the user what landed. Do not leave approved work sitting in open PRs. Update the main
+   checkout with `.crew/bin/sync.sh` (removes local WP copies that landed through the PR).
 7. **Tiny jobs:** if a WP turns out to be a few lines, stop the agent and do it yourself — agent
    runs cost tokens.
 
