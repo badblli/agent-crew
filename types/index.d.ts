@@ -12,6 +12,8 @@ export type AgentView = {
   note: string
   workdir: string
   isRunning: boolean
+  isPaused: boolean
+  resumeAt: string
   startedAt: number
   updatedAt: number
   commands: number
@@ -66,6 +68,20 @@ export type DiffFile = { path: string; added: number; removed: number; isNew: bo
 
 export type DiffView = { files: DiffFile[]; selected: string; patch: string; error: string }
 
+export type UsageWindow = { label: string; percent: number; resetsAt: number }
+
+export type UsageView = {
+  isActive: boolean
+  lang: string
+  stateDir: string
+  checkedAt: number
+  claude: UsageWindow[]
+  context: { percent: number; tokens: number; window: number } | null
+  codex: { plan: string; windows: UsageWindow[] } | null
+  agy: { tokensToday: number; runsToday: number; isLimited: boolean } | null
+  error: string
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'agent-crew': {
@@ -78,6 +94,8 @@ declare module 'claude-code' {
       diffs: Record<string, DiffView>
       diffOpen: string[]
       health: { at: number; ms: number; error: string; count: number }
+      usage: UsageView
+      usageWarned: string[]
     }
   }
 }

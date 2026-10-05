@@ -14,12 +14,15 @@ Paths: read `.crew/config.json` (`planDir`, `stateDir`). Scripts: `.crew/bin/` (
 ## The loop
 
 1. **Write a WP** from `<planDir>/wp/TEMPLATE.md`: one user-visible outcome, scope in/out, tasks,
-   measurable acceptance criteria, `- Summary:` in the crew language, `- Model:` tier
+   measurable acceptance criteria, `- Summary:` in the crew language, `- Engine:` (codex or agy, default codex), `- Model:` tier
    (light for mechanical, standard by default, deep for correctness-critical, peak only with a
    reason). Never put private data (customer names, secrets) in a WP that will be committed.
    If `TYPESAFE_API_KEY` is available, get a second opinion from Jev before assigning:
    `python .crew/bin/jev_route.py <wp.md>` (engine, tier, needs_user_decision, risk; one cheap
    request, falls back silently without a key). You still decide.
+   * **Engines:** Use `codex` by default. Use `agy` for tasks benefiting from its unique capabilities.
+   * **Quota Failover:** If an engine hits a usage limit, the runner will pause the WP. If `CREW_FAILOVER=<engine>` is set, it will automatically hand over the work to the other engine with the current diff.
+   * **Cross-review:** You can manually use `agy` to review a Codex diff read-only by running `agy --mode plan` on the worktree.
 2. **Assign and run:** `python .crew/bin/board.py assign <wp> <agent-id>` then
    `.crew/bin/run-wp.sh <wp> [base-ref]` in the background. Independent WPs run in parallel; two WPs
    that touch the same files do not. Before launching parallel WPs, list each one's files and check

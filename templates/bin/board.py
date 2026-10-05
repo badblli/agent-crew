@@ -106,16 +106,28 @@ def main(argv: list[str]) -> None:
         spec = (PLAN / "wp" / f"{args[0]}.md").read_text(encoding="utf-8")
         tier = next((ln.split(":", 1)[1].strip().split()[0].lower() for ln in spec.splitlines()
                      if ln.startswith("- Model:")), routing["default"])
-        if tier not in routing["tiers"]:
-            raise SystemExit(f"unknown model tier {tier}; one of {sorted(routing['tiers'])}")
-        print(routing["tiers"][tier]["model"], routing["tiers"][tier]["effort"], tier)
+        engine = next((ln.split(":", 1)[1].strip().split()[0].lower() for ln in spec.splitlines()
+                       if ln.startswith("- Engine:")), None)
+        
+        # Engine: CREW_ENGINE_FORCE (failover) > "- Engine:" line in the WP > CREW_ENGINE > codex.
+        import os
+        engine = os.environ.get("CREW_ENGINE_FORCE", "").lower() or engine or os.environ.get("CREW_ENGINE", "codex").lower()
+            
+        tiers_key = f"{engine}_tiers" if engine != "codex" else "tiers"
+        if tiers_key not in routing or tier not in routing[tiers_key]:
+            # fallback
+            if tier not in routing["tiers"]:
+                raise SystemExit(f"unknown model tier {tier}; one of {sorted(routing['tiers'])}")
+            tiers_key = "tiers"
+
+        print(routing[tiers_key][tier]["model"], routing[tiers_key][tier]["effort"], tier, engine)
     elif cmd == "agent":
         print(agent_of(args[0]))
     elif cmd == "say":
         say(args[0], args[1], args[2])
     elif cmd == "ingest":
         wp = args[0]
-        sender = agent_of(wp) or "codex"
+        sender = agent_of(wp) or "agent"
         for line in sys.stdin:
             sys.stdout.write(line)
             sys.stdout.flush()
@@ -128,6 +140,12 @@ def main(argv: list[str]) -> None:
                 say(wp, sender, item.get("text", ""))
             elif event.get("type") == "turn.failed":
                 say(wp, sender, "Hata: " + str((event.get("error") or {}).get("message", "")), "error")
+            elif event.get("event") == "result":
+                res = event.get("result") or {}
+                if res.get("status") == "SUCCESS":
+                    say(wp, sender, res.get("response", ""))
+                else:
+                    say(wp, sender, "Hata: " + str(res.get("status", "")), "error")
     elif cmd == "decide":
         path = LEAD / "decision.json"
         if args == ["--clear"]:

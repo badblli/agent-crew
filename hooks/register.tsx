@@ -1,7 +1,9 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { Activity, AgentView, ChatEntry, CrewConfig, Decision, DiffFile, DiffView, Member, Phase, Snapshot } from '../types'
+import { banner, quotaDials, stepTrack } from './art'
+
+import type { Activity, AgentView, ChatEntry, CrewConfig, Decision, DiffFile, DiffView, Member, Phase, Snapshot, UsageView, UsageWindow } from '../types'
 
 // agent-crew: Claude Code as tech lead of a named team of coding agents.
 // UI: a crew board, one pane per agent, a decision band above the prompt, toasts on step changes and a
@@ -108,7 +110,7 @@ function shortCommand(raw: string): string {
   return (m ? m[1] : raw).replace(/\s+/g, ' ').trim()
 }
 
-function parseEvents(text: string) {
+export function parseEvents(text: string) {
   const items = new Map<string, Activity>()
   const order: string[] = []
   let commands = 0
@@ -146,6 +148,42 @@ function parseEvents(text: string) {
       edits += item.changes?.length ?? 0
       const files = (item.changes ?? []).map((ch: any) => String(ch.path).split(/[\\/]/).slice(-2).join('/'))
       put(item.id, { kind: 'edit', text: files.join(', '), isRunning: false })
+    } else if (ev.event === 'result') {
+      const resUsage = ev.result?.usage
+      if (resUsage) {
+        tokens += (resUsage.input_tokens ?? 0) + (resUsage.output_tokens ?? 0)
+        usage.input += resUsage.input_tokens ?? 0
+        usage.cached += resUsage.cache_read_tokens ?? 0
+        usage.output += resUsage.output_tokens ?? 0
+        usage.reasoning += resUsage.thinking_tokens ?? 0
+      }
+    } else if (ev.event === 'step_update' && ev.step_update?.step_type === 'tool') {
+      const step = ev.step_update
+      const isDone = step.state === 'DONE' || step.state === 'ERROR'
+      const isError = step.state === 'ERROR'
+      const toolName = step.tool_name
+      const id = String(step.step_index)
+      const params = step.tool_info?.parameters ?? {}
+      
+      if (toolName === 'run_command') {
+        if (!isDone) commands += 1
+        put(id, {
+          kind: isError ? 'error' : 'cmd',
+          text: shortCommand(params.CommandLine ?? '') + (isError ? '  (error)' : ''),
+          isRunning: !isDone,
+        })
+      } else if (toolName === 'write_to_file' || toolName === 'replace_file_content' || toolName === 'multi_replace_file_content' || toolName === 'sed_file' || toolName === 'notebook_edit') {
+        if (isDone && !isError) {
+          edits += 1
+          let path = params.TargetFile ?? params.AbsolutePath ?? ''
+          path = path.split(/[\\/]/).slice(-2).join('/')
+          put(id, { kind: 'edit', text: path, isRunning: false })
+        } else if (!isDone) {
+          let path = params.TargetFile ?? params.AbsolutePath ?? ''
+          path = path.split(/[\\/]/).slice(-2).join('/')
+          put(id, { kind: 'edit', text: path, isRunning: true })
+        }
+      }
     }
   }
   return { commands, edits, tokens, usage, recent: order.slice(-5).map(id => items.get(id)!) }
@@ -171,6 +209,7 @@ async function latestRun($: any, c: CrewConfig, wp: string) {
   return {
     startedAt: new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime(),
     status: (await $.fs.read(`${run}/status`).catch(() => '')).trim(),
+    resumeAt: (await $.fs.read(`${run}/resume_at`).catch(() => '')).trim(),
     workdir: (await $.fs.read(`${run}/workdir`).catch(() => '')).trim(),
     modelLine: (await $.fs.read(`${run}/model`).catch(() => '')).trim(),
     totalTokens,
@@ -222,6 +261,8 @@ async function scan($: any, c: CrewConfig): Promise<Snapshot> {
       note: pick?.[1].note ?? '',
       workdir: run?.workdir ?? '',
       isRunning: !!run && (run.status === 'running' || run.status.startsWith('retry')),
+      isPaused: run?.status === 'paused',
+      resumeAt: run?.resumeAt ?? '',
       startedAt: run?.startedAt ?? 0,
       updatedAt: run?.updatedAt ?? 0,
       commands: run?.commands ?? 0,
@@ -414,7 +455,260 @@ function stepLabel(snap: Snapshot, S: Strings, id: string): string {
 
 // ── hooks ─────────────────────────────────────────────────────────────────────────────────
 
+// ---- Quota pane (Claude / Codex / agy) ----
+// Quota pane: Claude (this session's plan windows + context), Codex (rollout rate limits) and
+// agy/Gemini (tokens today). Codex and agy figures come from templates/bin/usage.py.
+
+const USAGE_PANE = 'crew-usage'
+const USAGE_EMPTY: UsageView = { checkedAt: 0, claude: [], context: null, codex: null, agy: null, error: '', lang: 'en', stateDir: '.lead', isActive: false }
+
+const usage = atom({ plugin: 'agent-crew', key: 'usage' } as const, USAGE_EMPTY)
+const warned = atom({ plugin: 'agent-crew', key: 'usageWarned' } as const, [])
+
+const USAGE_STRINGS = {
+  en: {
+    title: 'QUOTA',
+    command: 'Show Claude, Codex and Gemini quota',
+    opened: 'Quota pane opened.',
+    fiveHour: '5 hours',
+    weekly: 'weekly',
+    context: 'context',
+    resetsIn: (d: string) => `resets in ${d}`,
+    full: 'FULL · new runs wait',
+    tokensToday: (t: string, n: number) => `today ${t} tokens · ${n} runs`,
+    limited: 'quota error on the last run',
+    ok: 'no quota error',
+    noData: 'no reading yet',
+    noClaude: 'no reading yet (appears after the next reply)',
+    updated: (s: string) => `updated ${s} ago`,
+    loading: 'reading…',
+    stale: 'stale',
+    warn: (who: string, p: number) => `${who} quota at ${p}%`,
+    legend: 'green < 75 % · yellow ≥ 75 % · red ≥ 90 %',
+    s: 's',
+    m: 'm',
+    h: 'h',
+    d: 'd',
+  },
+  tr: {
+    title: 'KOTA',
+    command: 'Claude, Codex ve Gemini kotasını göster',
+    opened: 'Kota paneli açıldı.',
+    fiveHour: '5 saat',
+    weekly: 'haftalık',
+    context: 'bağlam',
+    resetsIn: (d: string) => `${d} sonra sıfırlanır`,
+    full: 'DOLU · yeni işler bekler',
+    tokensToday: (t: string, n: number) => `bugün ${t} token · ${n} iş`,
+    limited: 'son işte kota hatası',
+    ok: 'kota hatası yok',
+    noData: 'henüz okuma yok',
+    noClaude: 'henüz okuma yok (sonraki yanıttan sonra gelir)',
+    updated: (s: string) => `${s} önce güncellendi`,
+    loading: 'okunuyor…',
+    stale: 'eski',
+    warn: (who: string, p: number) => `${who} kotası %${p}`,
+    legend: 'yeşil < %75 · sarı ≥ %75 · kırmızı ≥ %90',
+    s: 'sn',
+    m: 'dk',
+    h: 'sa',
+    d: 'g',
+  },
+}
+type UsageStrings = (typeof USAGE_STRINGS)['en']
+const usageStrings = (lang: string): UsageStrings => (USAGE_STRINGS as Record<string, UsageStrings>)[lang] ?? USAGE_STRINGS.en
+
+const kTokensBig = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n))
+const colorOf = (p: number) => (p >= 90 ? 'red' : p >= 75 ? 'yellow' : 'green')
+const bar = (p: number) => {
+  const n = Math.max(0, Math.min(10, Math.round(p / 10)))
+  return '▰'.repeat(n) + '▱'.repeat(10 - n)
+}
+
+function span(S: UsageStrings, ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000))
+  if (s < 60) return `${s} ${S.s}`
+  const m = Math.round(s / 60)
+  if (m < 60) return `${m} ${S.m}`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h} ${S.h} ${m % 60} ${S.m}`
+  return `${Math.floor(h / 24)} ${S.d} ${h % 24} ${S.h}`
+}
+
+function win(label: string, raw: any): UsageWindow | null {
+  if (!raw || typeof raw.percent !== 'number') return null
+  return { label, percent: Math.round(raw.percent), resetsAt: raw.resets_at ? Date.parse(raw.resets_at) : 0 }
+}
+
+async function loadUsageConfig($: any) {
+  const raw = await $.fs.read('.crew/config.json').then(JSON.parse).catch(() => null)
+  return { isActive: !!raw, lang: raw?.lang ?? 'en', stateDir: raw?.stateDir ?? '.crew/state' }
+}
+
+async function refreshClaude($: any) {
+  const u = await $.session.usage().catch(() => null)
+  if (!u) return
+  const claude: UsageWindow[] = (u.rateLimits ?? [])
+    .filter((r: any) => typeof r.percentUsed === 'number')
+    .map((r: any) => ({ label: r.kind, percent: Math.round(r.percentUsed), resetsAt: r.resetsAt ? Date.parse(r.resetsAt) : 0 }))
+  const context = u.context?.percent != null ? { percent: u.context.percent, tokens: u.context.tokens ?? 0, window: u.context.window } : null
+  const prev = await read($, usage)
+  await update($, usage, v => ({ ...v, claude: claude.length ? claude : v.claude, context: context ?? v.context }))
+  // Scripts (run-wp failover, the lead) read the same figures from the state dir.
+  if (prev.isActive && claude.length) {
+    const body = { updated_at: new Date(Date.now()).toISOString(), windows: claude.map(w => ({ ...w, resetsAt: w.resetsAt ? new Date(w.resetsAt).toISOString() : null })) }
+    await $.fs.write(`${prev.stateDir}/usage/claude.json`, JSON.stringify(body, null, 2)).catch(() => undefined)
+  }
+}
+
+async function refreshEngines($: any) {
+  const v = await read($, usage)
+  if (!v.isActive) return
+  const script = `${$.plugin.root}/templates/bin/usage.py`
+  let error = ''
+  let data: any = null
+  for (const py of ['python', 'python3', 'py']) {
+    const r = await $.process.run([py, script, '--state', v.stateDir], { timeoutMs: 20000 }).catch((e: any) => ({ exitCode: 1, stdout: '', stderr: String(e) }))
+    if (r.exitCode === 0) {
+      data = JSON.parse(r.stdout)
+      error = ''
+      break
+    }
+    error = (r.stderr || 'usage.py failed').split('\n')[0]
+  }
+  await update($, usage, u => ({
+    ...u,
+    checkedAt: Date.now(),
+    error,
+    codex: data?.codex?.available
+      ? { plan: data.codex.plan ?? '', windows: [win('five_hour', data.codex.five_hour), win('seven_day', data.codex.weekly)].filter(Boolean) as UsageWindow[] }
+      : u.codex,
+    agy: data?.agy ? { tokensToday: data.agy.tokens_today, runsToday: data.agy.runs_today, isLimited: !!data.agy.limited } : u.agy,
+  }))
+  await warnOnce($)
+}
+
+async function warnOnce($: any) {
+  const v = await read($, usage)
+  const S = usageStrings(v.lang)
+  const seen = await read($, warned)
+  const all: [string, UsageWindow][] = [...v.claude.map(w => ['Claude', w] as [string, UsageWindow]), ...(v.codex?.windows ?? []).map(w => ['Codex', w] as [string, UsageWindow])]
+  for (const [who, w] of all) {
+    const key = `${who}:${w.label}:${w.resetsAt}`
+    if (w.percent >= 90 && !seen.includes(key)) {
+      await update($, warned, list => [...list.slice(-20), key])
+      void Promise.resolve($.ui.toast(S.warn(who, w.percent))).catch(() => undefined)
+    }
+  }
+}
+
+/** Called from the crew's single session.start hook. */
+async function startUsage($: any) {
+  const c = await loadUsageConfig($)
+  await update($, usage, v => ({ ...v, ...c }))
+  // `usage` is a built-in command; ours are `quota` and, in Turkish, `kota`.
+  for (const name of c.lang === 'tr' ? ['kota', 'quota'] : ['quota']) {
+    await $.command.register({ name, description: usageStrings(c.lang).command }).catch(() => undefined)
+  }
+  void refreshClaude($).catch(() => undefined)
+  void refreshEngines($).catch(() => undefined)
+  $.clock.every(30000, () => void refreshClaude($).catch(() => undefined))
+  $.clock.every(60000, () => void refreshEngines($).catch(() => undefined))
+}
+
+/** Called from the crew's single command.run hook; undefined when the command is not ours. */
+async function usageCommand($: any, command: string) {
+  if (command !== 'quota' && command !== 'kota') return undefined
+  const v = await read($, usage)
+  await $.ui.open({ id: USAGE_PANE, title: usageStrings(v.lang).title.toLowerCase() })
+  void refreshEngines($).catch(() => undefined)
+  return { text: usageStrings(v.lang).opened }
+}
+
+
 export const register: Register = on => {
+  // Quota pane.
+  on('session.measure', async ($, e, next) => {
+    await refreshClaude($).catch(() => undefined)
+    await warnOnce($).catch(() => undefined)
+    return next(e)
+  })
+
+  on('ui.render', { component: 'Pane', requestId: USAGE_PANE }, async ($, e) => {
+    const { Box, Text } = $.ui.resolve(e)
+    const Svg = (e.surface === 'desktop' || e.surface === 'mobile' ? ($.ui.resolve(e) as any).Svg : undefined) as any
+    const v = await read($, usage)
+    const S = usageStrings(v.lang)
+    const now = Date.now()
+    const label = (l: string) => (l === 'five_hour' ? S.fiveHour : l === 'seven_day' ? S.weekly : l)
+    const pick = (ws: UsageWindow[], kind: string) => ws.find(w => w.label === kind) ?? null
+    const until = (w: UsageWindow | null) => (w && w.resetsAt > now ? S.resetsIn(span(S, w.resetsAt - now)) : '')
+    const c5 = pick(v.claude, 'five_hour')
+    const x5 = pick(v.codex?.windows ?? [], 'five_hour')
+    const dials = Svg
+      ? quotaDials(
+          [
+            { name: '✳ Claude', color: '#d97757', outer: c5?.percent ?? null, inner: pick(v.claude, 'seven_day')?.percent ?? null, caption: until(c5), note: v.context ? `${S.context} %${v.context.percent}` : '' },
+            { name: '◎ Codex', color: '#10a37f', outer: x5?.percent ?? null, inner: pick(v.codex?.windows ?? [], 'seven_day')?.percent ?? null, caption: until(x5), note: (x5?.percent ?? 0) >= 100 ? `!${S.full.split(' ·')[0]}` : (v.codex?.plan ?? '') },
+            { name: '✦ Gemini', color: '#4285f4', outer: null, inner: null, caption: v.agy ? `${kTokensBig(v.agy.tokensToday)} token` : S.noData, note: v.agy?.isLimited ? `!${S.limited}` : v.agy ? S.ok : '' },
+          ],
+          S.legend,
+        )
+      : ''
+
+    const row = (w: UsageWindow) => (
+      <Text>
+        <Text>{'  '}{label(w.label).padEnd(9)}</Text>
+        <Text color={colorOf(w.percent)}>{bar(w.percent)} {String(w.percent).padStart(3)}%</Text>
+        <Text dimColor>{w.resetsAt > now ? `  · ${S.resetsIn(span(S, w.resetsAt - now))}` : ''}</Text>
+        {w.percent >= 100 && <Text color="red" bold>{'  '}{S.full}</Text>}
+      </Text>
+    )
+
+    return (
+      <Box flexDirection="column" gap={1}>
+        <Box flexDirection="row" justifyContent="space-between" borderStyle="round" borderColor="yellow" paddingX={1}>
+          <Text color="yellow" bold>⚡ {S.title}</Text>
+          <Text dimColor>{v.checkedAt ? S.updated(span(S, now - v.checkedAt)) : S.loading}</Text>
+        </Box>
+
+        {Svg && <Svg key="quota-dials" source={dials} alt={`${S.title}: Claude ${c5?.percent ?? '?'}%, Codex ${x5?.percent ?? '?'}%`} />}
+
+        <Box flexDirection="column">
+          <Text color="#d97757" bold>✳ Claude</Text>
+          {v.claude.length === 0 ? <Text dimColor>{'  '}{S.noClaude}</Text> : v.claude.map(row)}
+          {v.context && (
+            <Text>
+              <Text>{'  '}{S.context.padEnd(9)}</Text>
+              <Text color={colorOf(v.context.percent)}>{bar(v.context.percent)} {String(v.context.percent).padStart(3)}%</Text>
+              <Text dimColor>  · {kTokensBig(v.context.tokens)} / {kTokensBig(v.context.window)}</Text>
+            </Text>
+          )}
+        </Box>
+
+        <Box flexDirection="column">
+          <Text color="#10a37f" bold>◎ Codex{v.codex?.plan ? ` · ${v.codex.plan}` : ''}</Text>
+          {!v.codex || v.codex.windows.length === 0 ? <Text dimColor>{'  '}{S.noData}</Text> : v.codex.windows.map(row)}
+        </Box>
+
+        <Box flexDirection="column">
+          <Text color="#4285f4" bold>✦ Gemini · agy</Text>
+          {!v.agy ? (
+            <Text dimColor>{'  '}{S.noData}</Text>
+          ) : (
+            <Text>
+              <Text>{'  '}{S.tokensToday(kTokensBig(v.agy.tokensToday), v.agy.runsToday)} · </Text>
+              <Text color={v.agy.isLimited ? 'red' : 'green'}>{v.agy.isLimited ? S.limited : S.ok}</Text>
+            </Text>
+          )}
+        </Box>
+
+        {v.error !== '' && <Text color="red" wrap="wrap">usage.py: {v.error}</Text>}
+        <Text dimColor>{S.legend}</Text>
+      </Box>
+    )
+  })
+
   on('session.start', async ($, e, next) => {
     const c = await loadConfig($)
     await update($, config, () => c)
@@ -432,10 +726,13 @@ export const register: Register = on => {
     $.clock.every(3000, () => void refresh($).catch(() => undefined))
     $.clock.every(300, () => void update($, tick, n => (n + 1) % 1000))
     if (c.isActive) void openBoard($).catch(() => undefined)
+    await startUsage($).catch(() => undefined)
     return next(e)
   })
 
   on('command.run', async ($, e, next) => {
+    const quota = await usageCommand($, e.command)
+    if (quota) return quota
     const c = await read($, config)
     const S = strings(c)
     if (e.command === 'crew' || e.command === 'ekip') {
@@ -527,8 +824,16 @@ export const register: Register = on => {
     const t = await read($, tick)
     const hp = await read($, health)
     if (!c.isActive) return <Text dimColor>{S.notConfigured}</Text>
+    const BoardSvg = (e.surface === 'desktop' || e.surface === 'mobile' ? ($.ui.resolve(e) as any).Svg : undefined) as any
     return (
       <Box flexDirection="column" gap={1}>
+        {BoardSvg && (
+          <BoardSvg
+            key="crew-banner"
+            source={banner(`◆ ${(c.project || 'crew').toUpperCase()}${snap.themeTitle ? ` · ${snap.themeTitle}` : ''}`, snap.phase || S.noPhase, snap.agents.map(x => x.member.color), snap.lead.color)}
+            alt={`${c.project} · ${snap.phase}`}
+          />
+        )}
         <Box flexDirection="column" borderStyle="round" borderColor={snap.lead.color} paddingX={1}>
           <Text>
             <Text color={snap.lead.color} bold>
@@ -601,6 +906,7 @@ export const register: Register = on => {
                     {'  '}
                     {a.wp}
                     {a.isRunning ? ` · ${ago(c, snap.checkedAt - a.startedAt)}` : ''}
+                    {a.isPaused ? ` · paused · resumes ${a.resumeAt}` : ''}
                     {a.model ? ` · ${a.model}/${a.effort} · ${kTokens(a.totalTokens)} ${S.tokens}` : ''}
                   </Text>
                 </Text>
@@ -641,6 +947,7 @@ export const register: Register = on => {
     const at = shown.findIndex(s => s.id === a.step)
     const mark = (x: Activity) => (x.isRunning ? SPINNER[t % SPINNER.length] : x.kind === 'edit' ? '✎' : x.kind === 'error' ? '✗' : '✓')
     const Input = (e.surface !== 'mobile' ? ($.ui.resolve(e) as any).Input : undefined) as any
+    const Svg = (e.surface === 'desktop' || e.surface === 'mobile' ? ($.ui.resolve(e) as any).Svg : undefined) as any
 
     return (
       <Box flexDirection="column" gap={1}>
@@ -661,13 +968,18 @@ export const register: Register = on => {
           )}
         </Box>
 
-        {a.wp !== '' && (
+        {a.wp !== '' && Svg && (
+          <Svg key={`track-${a.member.id}`} source={stepTrack(shown.map(x => x.label), at, a.member.color, a.step === 'failed')} alt={stepLabel(snap, S, a.step)} />
+        )}
+
+        {a.wp !== '' && !Svg && (
           <Box flexDirection="column">
             {shown.map((s, i) => (
               <Text color={i === at ? a.member.color : undefined} bold={i === at} dimColor={i > at}>
                 {i < at ? '  ✓ ' : i === at ? (a.isRunning ? `  ${SPINNER[t % SPINNER.length]} ` : '  ▶ ') : '  ○ '}
                 {s.label}
                 {i === at && a.isRunning ? `  · ${ago(c, snap.checkedAt - a.startedAt)}` : ''}
+                {i === at && a.isPaused ? `  · paused · resumes ${a.resumeAt}` : ''}
               </Text>
             ))}
             {a.step === 'failed' && <Text color="red" bold>{S.failedRetry}</Text>}

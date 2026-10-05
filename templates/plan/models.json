@@ -27,6 +27,28 @@
       "use": "rare: architecture drafts, deep debugging, work that failed twice; needs a reason in the WP"
     }
   },
+  "agy_tiers": {
+    "light": {
+      "model": "gemini-3.8-flash-low",
+      "effort": "low",
+      "label": "Light"
+    },
+    "standard": {
+      "model": "gemini-3.8-flash-medium",
+      "effort": "medium",
+      "label": "Standard"
+    },
+    "deep": {
+      "model": "gemini-3.1-pro-high",
+      "effort": "high",
+      "label": "Deep"
+    },
+    "peak": {
+      "model": "gemini-3.1-pro-high",
+      "effort": "high",
+      "label": "Peak"
+    }
+  },
   "claude_tiers": {
     "_doc": "Claude subagents (engine: claude) run through the lead's Agent tool.",
     "light": {
