@@ -1,0 +1,276 @@
+{
+  "theme": "pokemon",
+  "lead": {
+    "id": "claude",
+    "name": "Claude",
+    "color": "#d97757",
+    "role": "Tech lead · plan, review, commit/PR"
+  },
+  "user": {
+    "id": "user",
+    "name": "You",
+    "color": "#60a5fa",
+    "role": "Product owner"
+  },
+  "agents": [
+    {
+      "id": "builder",
+      "name": "Builder",
+      "color": "#f97316",
+      "role": "Codex · backend / core"
+    },
+    {
+      "id": "analyst",
+      "name": "Analyst",
+      "color": "#a78bfa",
+      "role": "Codex · data / measurement"
+    },
+    {
+      "id": "api",
+      "name": "Connector",
+      "color": "#22d3ee",
+      "role": "Codex · API / integrations"
+    },
+    {
+      "id": "ui",
+      "name": "Designer",
+      "color": "#f472b6",
+      "role": "Codex · UI"
+    },
+    {
+      "id": "qa",
+      "name": "Tester",
+      "color": "#4ade80",
+      "role": "Codex · tests / quality"
+    },
+    {
+      "id": "scribe",
+      "name": "Scribe",
+      "color": "#38bdf8",
+      "role": "Claude · docs & notes",
+      "engine": "claude"
+    }
+  ],
+  "steps": [
+    {
+      "id": "assigned",
+      "label": "Assigned"
+    },
+    {
+      "id": "working",
+      "label": "Working"
+    },
+    {
+      "id": "reported",
+      "label": "Reported"
+    },
+    {
+      "id": "reviewing",
+      "label": "Lead reviewing"
+    },
+    {
+      "id": "changes_requested",
+      "label": "Changes requested"
+    },
+    {
+      "id": "approved",
+      "label": "Approved"
+    },
+    {
+      "id": "pr_open",
+      "label": "PR open"
+    },
+    {
+      "id": "merged",
+      "label": "Merged"
+    }
+  ],
+  "phases": [
+    {
+      "id": "D0",
+      "label": "Setup"
+    },
+    {
+      "id": "D1",
+      "label": "Phase 1"
+    },
+    {
+      "id": "D2",
+      "label": "Phase 2"
+    },
+    {
+      "id": "D3",
+      "label": "Phase 3"
+    }
+  ],
+  "themes": {
+    "classic": {
+      "title": "Classic",
+      "bar": "blocks",
+      "lead": {
+        "avatar": "◆"
+      },
+      "user": {
+        "avatar": "★"
+      },
+      "agents": {
+        "builder": {
+          "avatar": "●"
+        },
+        "analyst": {
+          "avatar": "●"
+        },
+        "api": {
+          "avatar": "●"
+        },
+        "ui": {
+          "avatar": "●"
+        },
+        "qa": {
+          "avatar": "●"
+        },
+        "scribe": {
+          "avatar": "●"
+        }
+      }
+    },
+    "pokemon": {
+      "title": "Pokémon",
+      "bar": "pokeball",
+      "lead": {
+        "name": "Pikachu",
+        "avatar": "⚡",
+        "color": "#facc15"
+      },
+      "user": {
+        "name": "Ash",
+        "avatar": "🧢",
+        "color": "#60a5fa"
+      },
+      "agents": {
+        "builder": {
+          "name": "Charizard",
+          "avatar": "🔥",
+          "color": "#f97316"
+        },
+        "analyst": {
+          "name": "Alakazam",
+          "avatar": "🔮",
+          "color": "#a78bfa"
+        },
+        "api": {
+          "name": "Porygon",
+          "avatar": "💠",
+          "color": "#22d3ee"
+        },
+        "ui": {
+          "name": "Jigglypuff",
+          "avatar": "🎤",
+          "color": "#f472b6"
+        },
+        "qa": {
+          "name": "Bulbasaur",
+          "avatar": "🌱",
+          "color": "#4ade80"
+        },
+        "scribe": {
+          "name": "Chatot",
+          "avatar": "🦜",
+          "color": "#38bdf8"
+        }
+      }
+    },
+    "pacman": {
+      "title": "Pac-Man",
+      "bar": "pacman",
+      "lead": {
+        "name": "Pac-Man",
+        "avatar": "ᗧ",
+        "color": "#facc15"
+      },
+      "user": {
+        "name": "Player 1",
+        "avatar": "🕹",
+        "color": "#60a5fa"
+      },
+      "agents": {
+        "builder": {
+          "name": "Blinky",
+          "avatar": "ᗣ",
+          "color": "#ef4444"
+        },
+        "analyst": {
+          "name": "Inky",
+          "avatar": "ᗣ",
+          "color": "#22d3ee"
+        },
+        "api": {
+          "name": "Clyde",
+          "avatar": "ᗣ",
+          "color": "#fb923c"
+        },
+        "ui": {
+          "name": "Pinky",
+          "avatar": "ᗣ",
+          "color": "#f472b6"
+        },
+        "qa": {
+          "name": "Sue",
+          "avatar": "ᗣ",
+          "color": "#a78bfa"
+        },
+        "scribe": {
+          "name": "Fruit",
+          "avatar": "🍒",
+          "color": "#38bdf8"
+        }
+      }
+    },
+    "fantasy": {
+      "title": "Fantasy",
+      "bar": "mana",
+      "lead": {
+        "name": "Archmage",
+        "avatar": "🔮",
+        "color": "#d97757"
+      },
+      "user": {
+        "name": "Captain",
+        "avatar": "👑",
+        "color": "#60a5fa"
+      },
+      "agents": {
+        "builder": {
+          "name": "Smith",
+          "avatar": "⚒",
+          "color": "#f97316"
+        },
+        "analyst": {
+          "name": "Seer",
+          "avatar": "🎯",
+          "color": "#facc15"
+        },
+        "api": {
+          "name": "Envoy",
+          "avatar": "🔗",
+          "color": "#4ade80"
+        },
+        "ui": {
+          "name": "Bard",
+          "avatar": "🎨",
+          "color": "#f472b6"
+        },
+        "qa": {
+          "name": "Warden",
+          "avatar": "🛡",
+          "color": "#a78bfa"
+        },
+        "scribe": {
+          "name": "Chronicler",
+          "avatar": "📜",
+          "color": "#38bdf8"
+        }
+      }
+    }
+  }
+}

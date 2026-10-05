@@ -1,0 +1,43 @@
+{
+  "_doc": "Model routing for Codex agents. The lead picks a tier per WP with a '- Model: <tier>' line in the WP spec; follow-up messages (tell.sh) resume the same thread on the same model so the cached prompt is reused. Escalate a tier only with a reason in the WP.",
+  "default": "standard",
+  "tiers": {
+    "light": {
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "label": "Light",
+      "use": "mechanical work: lint/format, renames, docs, small well-specified fixes"
+    },
+    "standard": {
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "label": "Standard",
+      "use": "typical implementation: new module, endpoint, tests, UI in a known pattern"
+    },
+    "deep": {
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "label": "Deep",
+      "use": "careful work: parsing/algorithms, data correctness, multi-file changes"
+    },
+    "peak": {
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "label": "Peak",
+      "use": "rare: architecture drafts, deep debugging, work that failed twice; needs a reason in the WP"
+    }
+  },
+  "claude_tiers": {
+    "_doc": "Claude subagents (engine: claude) run through the lead's Agent tool.",
+    "light": {
+      "model": "haiku",
+      "label": "Light",
+      "use": "notes, short summaries"
+    },
+    "standard": {
+      "model": "sonnet",
+      "label": "Standard",
+      "use": "README and user-facing docs"
+    }
+  }
+}

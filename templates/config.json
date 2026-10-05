@@ -1,0 +1,7 @@
+{
+  "project": "my-project",
+  "lang": "en",
+  "planDir": ".crew/plan",
+  "stateDir": ".crew/state",
+  "phasePrefix": "D"
+}

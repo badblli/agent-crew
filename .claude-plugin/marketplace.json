@@ -1,0 +1,11 @@
+{
+  "name": "agent-crew",
+  "owner": { "name": "badblli" },
+  "plugins": [
+    {
+      "name": "agent-crew",
+      "source": "./",
+      "description": "Claude Code as tech lead of a named coding-agent crew, with a live crew board."
+    }
+  ]
+}
