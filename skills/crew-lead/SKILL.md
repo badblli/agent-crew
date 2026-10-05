@@ -17,6 +17,9 @@ Paths: read `.crew/config.json` (`planDir`, `stateDir`). Scripts: `.crew/bin/` (
    measurable acceptance criteria, `- Summary:` in the crew language, `- Model:` tier
    (light for mechanical, standard by default, deep for correctness-critical, peak only with a
    reason). Never put private data (customer names, secrets) in a WP that will be committed.
+   If `TYPESAFE_API_KEY` is available, get a second opinion from Jev before assigning:
+   `python .crew/bin/jev_route.py <wp.md>` (engine, tier, needs_user_decision, risk; one cheap
+   request, falls back silently without a key). You still decide.
 2. **Assign and run:** `python .crew/bin/board.py assign <wp> <agent-id>` then
    `.crew/bin/run-wp.sh <wp> [base-ref]` in the background. Independent WPs run in parallel; two WPs
    that touch the same files do not. Before launching parallel WPs, list each one's files and check
