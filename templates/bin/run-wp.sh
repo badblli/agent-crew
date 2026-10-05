@@ -20,9 +20,18 @@ fi
 source "$TEAM_SCRIPT_DIR/lib.sh"
 
 wp="${1:?usage: run-wp.sh <wp-id> [base-ref]}"
-base="${2:-origin/dev}"
+# Default base: the remote's default branch (origin/HEAD), else origin/main.
+default_ref="$(git -C "$root" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/main)"
+base="${2:-$default_ref}"
 spec="$plan_dir/wp/$wp.md"
-[[ -f "$spec" ]] || { echo "missing WP spec: $spec" >&2; exit 1; }
+if [[ ! -f "$spec" ]]; then
+  # The lead may have committed the WP on a branch only; read it from the base ref.
+  rel="${spec#"$root"/}"
+  git -C "$root" fetch -q origin 2>/dev/null || true
+  mkdir -p "$(dirname "$spec")"
+  git -C "$root" show "$base:$rel" >"$spec" 2>/dev/null \
+    || { rm -f "$spec"; echo "missing WP spec: $rel (not in the working tree or $base)" >&2; exit 1; }
+fi
 agent="$(board agent "$wp" 2>/dev/null || true)"
 read -r model effort tier < <(board model "$wp")
 
