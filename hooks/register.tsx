@@ -64,6 +64,7 @@ const STRINGS = {
     notConfigured: 'No crew in this project. Ask Claude to run the crew-init skill.', failedStep: 'failed', running: 'running',
     noWorkdir: 'no working directory', openBoard: 'Open the crew board', openAgent: (n: string, r: string) => `Open ${n} (${r})`,
     s: 's', m: 'm', h: 'h',
+    quickNotes: ['Continue', 'Re-run the tests', 'Keep the scope smaller', 'Explain your last change'],
   },
   tr: {
     board: 'ekip', noPhase: 'Faz bilgisi yok', roadmap: 'Yol haritası', decisionWaiting: '⚑ Karar bekliyor: ',
@@ -84,6 +85,7 @@ const STRINGS = {
     notConfigured: "Bu projede ekip yok. Claude'dan crew-init skill'ini çalıştırmasını iste.", failedStep: 'hata aldı', running: 'çalışıyor',
     noWorkdir: 'çalışma klasörü yok', openBoard: 'Ekip panosunu aç', openAgent: (n: string, r: string) => `${n} (${r}) panelini aç`,
     s: 'sn', m: 'dk', h: 'sa',
+    quickNotes: ['Devam et', 'Testleri yeniden çalıştır', 'Kapsamı küçült', 'Son değişikliğini açıkla'],
   },
 }
 type Strings = (typeof STRINGS)['en']
@@ -782,6 +784,14 @@ export const register: Register = on => {
                 ))}
               </Box>
             )}
+          </Box>
+        )}
+
+        {a.wp !== '' && !Input && (
+          <Box flexDirection="row" gap={1} flexWrap="wrap">
+            {S.quickNotes.map((q, i) => (
+              <Button key={`quick-${a.member.id}-${i}`} label={q} onPress={() => sendNote($, a, q)} />
+            ))}
           </Box>
         )}
 
