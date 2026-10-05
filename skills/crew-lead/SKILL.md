@@ -19,18 +19,21 @@ Paths: read `.crew/config.json` (`planDir`, `stateDir`). Scripts: `.crew/bin/` (
    reason). Never put private data (customer names, secrets) in a WP that will be committed.
 2. **Assign and run:** `python .crew/bin/board.py assign <wp> <agent-id>` then
    `.crew/bin/run-wp.sh <wp> [base-ref]` in the background. Independent WPs run in parallel; two WPs
-   that touch the same files do not.
-3. **When an agent reports, review for real:** read the diff, re-run the WP's commands yourself with
+   that touch the same files do not. Before launching parallel WPs, list each one's files and check
+   that no task in WP A needs a file you reserved for WP B — otherwise sequence them.
+3. **Inspect every failure before believing a metric.** When an evaluation or test run reports
+   failures, read the failing cases: wrong scorers and flaky checks look exactly like product bugs.
+4. **When an agent reports, review for real:** read the diff, re-run the WP's commands yourself with
    the project's pinned tools, spot-check claims against sources. Agents' "tests passed" and "lint
    clean" are claims until you reproduce them.
-4. **Feedback:** `.crew/bin/tell.sh <wp> "<specific change>"` resumes the same agent thread on the
+5. **Feedback:** `.crew/bin/tell.sh <wp> "<specific change>"` resumes the same agent thread on the
    same model (cache reuse). Move steps with `board.py step <wp> reviewing|changes_requested|approved
    "<note>"`; notes appear in the agent's pane.
-5. **Ship:** commit in the agent's worktree with a Conventional Commit message (mention the agent
+6. **Ship:** commit in the agent's worktree with a Conventional Commit message (mention the agent
    name), push, `gh pr create` to the default branch, then `board.py step <wp> pr_open`. When CI is
    green and the PR is clean, merge it **right away**, delete the branch, `board.py step <wp> merged`,
    and tell the user what landed. Do not leave approved work sitting in open PRs.
-6. **Tiny jobs:** if a WP turns out to be a few lines, stop the agent and do it yourself — agent
+7. **Tiny jobs:** if a WP turns out to be a few lines, stop the agent and do it yourself — agent
    runs cost tokens.
 
 ## Decisions
