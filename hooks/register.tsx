@@ -40,6 +40,8 @@ const health = atom({ plugin: 'agent-crew', key: 'health' } as const, { at: 0, m
 const ACTIVE_STEPS = new Set(['assigned', 'working', 'reported', 'reviewing', 'changes_requested', 'approved', 'pr_open', 'failed'])
 const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
 const agentPane = (id: string) => `crew-agent-${id}`
+const AGENTS_PANE = 'crew-agents'
+const selectedAgent = atom({ plugin: 'agent-crew', key: 'selectedAgent' } as const, '')
 const commandName = (m: Member) =>
   m.name.toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
     .replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -67,6 +69,7 @@ const STRINGS = {
     noWorkdir: 'no working directory', openBoard: 'Open the crew board', openAgent: (n: string, r: string) => `Open ${n} (${r})`,
     s: 's', m: 'm', h: 'h',
     quickNotes: ['Continue', 'Re-run the tests', 'Keep the scope smaller', 'Explain your last change'],
+    agentsTitle: 'agents', openAgents: 'Browse the crew agents one by one', prev: '‹ previous', next: 'next ›', nowDoing: 'now',
   },
   tr: {
     board: 'ekip', noPhase: 'Faz bilgisi yok', roadmap: 'Yol haritası', decisionWaiting: '⚑ Karar bekliyor: ',
@@ -88,6 +91,7 @@ const STRINGS = {
     noWorkdir: 'çalışma klasörü yok', openBoard: 'Ekip panosunu aç', openAgent: (n: string, r: string) => `${n} (${r}) panelini aç`,
     s: 'sn', m: 'dk', h: 'sa',
     quickNotes: ['Devam et', 'Testleri yeniden çalıştır', 'Kapsamı küçült', 'Son değişikliğini açıkla'],
+    agentsTitle: 'ajanlar', openAgents: 'Ekip ajanlarını tek panelde sırayla gez', prev: '‹ önceki', next: 'sonraki ›', nowDoing: 'şimdi',
   },
 }
 type Strings = (typeof STRINGS)['en']
@@ -308,7 +312,13 @@ async function scan($: any, c: CrewConfig): Promise<Snapshot> {
 // ── actions ───────────────────────────────────────────────────────────────────────────────
 
 async function openAgent($: any, a: AgentView) {
-  await $.ui.open({ id: agentPane(a.member.id), title: `${a.member.name} · ${a.member.role}` })
+  await update($, selectedAgent, () => a.member.id)
+  await openAgents($)
+}
+
+async function openAgents($: any) {
+  const S = strings(await read($, config))
+  await $.ui.open({ id: AGENTS_PANE, title: S.agentsTitle })
 }
 
 async function openBoard($: any) {
@@ -418,7 +428,9 @@ async function refreshOnce($: any) {
   for (const a of snap.agents) {
     if (ACTIVE_STEPS.has(a.step) && !seen.includes(a.member.id)) {
       await update($, opened, list => [...list, a.member.id])
-      void openAgent($, a).catch(() => undefined)
+      // Auto-open the agents pane once; never steal the person's current selection.
+      if (!(await read($, selectedAgent))) await update($, selectedAgent, () => a.member.id)
+      void openAgents($).catch(() => undefined)
     }
   }
 
@@ -717,6 +729,9 @@ export const register: Register = on => {
     const S = strings(c)
     await $.command.register({ name: 'crew', description: S.openBoard })
     if (c.lang === 'tr') await $.command.register({ name: 'ekip', description: S.openBoard })
+    for (const name of c.lang === 'tr' ? ['ajanlar', 'crew-agents'] : ['crew-agents']) {
+      await $.command.register({ name, description: S.openAgents }).catch(() => undefined)
+    }
     if (c.isActive) {
       for (const a of (await scan($, c)).agents) {
         await $.command.register({ name: commandName(a.member), description: S.openAgent(a.member.name, a.member.role) })
@@ -739,6 +754,11 @@ export const register: Register = on => {
       if (!c.isActive) return { text: S.notConfigured }
       await openBoard($)
       return { text: S.boardOpened }
+    }
+    if (e.command === 'ajanlar' || e.command === 'crew-agents') {
+      if (!c.isActive) return { text: S.notConfigured }
+      await openAgents($)
+      return { text: S.paneOpened(S.agentsTitle) }
     }
     const a = (await read($, snapshot)).agents.find(x => commandName(x.member) === e.command)
     if (!a) return next(e)
@@ -911,12 +931,17 @@ export const register: Register = on => {
                   </Text>
                 </Text>
                 <Text dimColor wrap="truncate-end">{a.summary}</Text>
+                {a.isRunning && a.recent.length > 0 && (
+                  <Text color={a.member.color} wrap="truncate-end">
+                    ▸ {S.nowDoing}: {a.recent[a.recent.length - 1].text}
+                  </Text>
+                )}
               </>
             )}
           </Box>
         ))}
         <Text dimColor>
-          /{S.board} · {snap.agents.map(a => `/${commandName(a.member)}`).join(' ')}
+          /{S.board} · /{c.lang === 'tr' ? 'ajanlar' : 'crew-agents'} · /{c.lang === 'tr' ? 'kota' : 'quota'} · {snap.agents.map(a => `/${commandName(a.member)}`).join(' ')}
         </Text>
         {hp.error !== '' ? (
           <Text color="red" wrap="wrap">{S.staleBoard}{hp.error.split('\n')[0]}</Text>
@@ -932,13 +957,17 @@ export const register: Register = on => {
   // One agent.
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
     const id = String(e.requestId ?? '')
-    if (!id.startsWith('crew-agent-')) return next(e)
+    const isBrowser = id === AGENTS_PANE
+    if (!isBrowser && !id.startsWith('crew-agent-')) return next(e)
     const { Box, Button, Text } = $.ui.resolve(e)
     const c = await read($, config)
     const S = strings(c)
     const snap = await read($, snapshot)
     const t = await read($, tick)
-    const a = snap.agents.find(x => agentPane(x.member.id) === id)
+    const chosen = await read($, selectedAgent)
+    const a = isBrowser
+      ? snap.agents.find(x => x.member.id === chosen) ?? snap.agents.find(x => x.wp !== '') ?? snap.agents[0]
+      : snap.agents.find(x => agentPane(x.member.id) === id)
     if (!a) return <Text dimColor>{S.notFound}</Text>
     const isDiffOpen = (await read($, diffOpen)).includes(a.member.id)
     const diff = (await read($, diffs))[a.member.id]
@@ -949,8 +978,32 @@ export const register: Register = on => {
     const Input = (e.surface !== 'mobile' ? ($.ui.resolve(e) as any).Input : undefined) as any
     const Svg = (e.surface === 'desktop' || e.surface === 'mobile' ? ($.ui.resolve(e) as any).Svg : undefined) as any
 
+    const index = snap.agents.indexOf(a)
+    const go = (step: number) => update($, selectedAgent, () => snap.agents[(index + step + snap.agents.length) % snap.agents.length].member.id)
+
     return (
       <Box flexDirection="column" gap={1}>
+        {isBrowser && (
+          <Box flexDirection="column">
+            <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
+              {snap.agents.map((x, i) => (
+                <Button
+                  key={`tab-${x.member.id}`}
+                  label={`${x.member.avatar ?? ''} ${x.member.name}${x.isRunning ? ' ●' : x.wp ? ' ·' : ''}`}
+                  hotkey={i < 9 ? String(i + 1) : undefined}
+                  variant={x === a ? 'primary' : 'secondary'}
+                  plain={x !== a}
+                  onPress={() => update($, selectedAgent, () => x.member.id)}
+                />
+              ))}
+            </Box>
+            <Box flexDirection="row" gap={1}>
+              <Button key="agent-prev" label={S.prev} hotkey="p" plain onPress={() => go(-1)} />
+              <Text dimColor>{index + 1}/{snap.agents.length}</Text>
+              <Button key="agent-next" label={S.next} hotkey="n" plain onPress={() => go(1)} />
+            </Box>
+          </Box>
+        )}
         <Box flexDirection="column" borderStyle="round" borderColor={a.member.color} paddingX={1}>
           <Text>
             <Text color={a.member.color} bold>

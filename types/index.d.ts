@@ -96,6 +96,7 @@ declare module 'claude-code' {
       health: { at: number; ms: number; error: string; count: number }
       usage: UsageView
       usageWarned: string[]
+      selectedAgent: string
     }
   }
 }
