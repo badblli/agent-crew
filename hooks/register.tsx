@@ -313,12 +313,15 @@ async function scan($: any, c: CrewConfig): Promise<Snapshot> {
 
 async function openAgent($: any, a: AgentView) {
   await update($, selectedAgent, () => a.member.id)
-  await openAgents($)
+  // Opening an open id only retitles it; close first so the agents pane comes to the front.
+  const panes = await Promise.resolve($.ui.panes()).catch(() => [])
+  if ((panes as { id: string }[]).some(p => p.id === AGENTS_PANE)) await Promise.resolve($.ui.close({ id: AGENTS_PANE })).catch(() => undefined)
+  await openAgents($, true)
 }
 
-async function openAgents($: any) {
+async function openAgents($: any, focus = false) {
   const S = strings(await read($, config))
-  await $.ui.open({ id: AGENTS_PANE, title: S.agentsTitle })
+  await $.ui.open({ id: AGENTS_PANE, title: S.agentsTitle, ...(focus ? { focus: true } : {}) })
 }
 
 async function openBoard($: any) {
@@ -1017,9 +1020,8 @@ export const register: Register = on => {
                 <Button
                   key={`tab-${x.member.id}`}
                   label={`${x.member.avatar ?? ''} ${x.member.name}${x.isRunning ? ' ●' : x.wp ? ' ·' : ''}`}
-                  hotkey={i < 9 ? String(i + 1) : undefined}
-                  variant={x === a ? 'primary' : 'secondary'}
-                  plain={x !== a}
+                  {...(i < 9 ? { hotkey: String(i + 1) } : {})}
+                  {...(x === a ? { variant: 'primary' } : { plain: true })}
                   onPress={() => update($, selectedAgent, () => x.member.id)}
                 />
               ))}
