@@ -33,7 +33,7 @@ if [[ ! -f "$spec" ]]; then
     || { rm -f "$spec"; echo "missing WP spec: $rel (not in the working tree or $base)" >&2; exit 1; }
 fi
 agent="$(board agent "$wp" 2>/dev/null || true)"
-read -r model effort tier engine < <(board model "$wp")
+read -r model effort tier engine < <(board model "$wp" | tr -d '\r')
 
 if [[ "${WP_IN_PLACE:-0}" == "1" ]]; then
   workdir="$root"
@@ -103,7 +103,7 @@ while [[ $status -ne 0 && $attempt -lt $max_attempts ]] && is_transient_failure 
       printf -v handoff_prompt 'The previous engine hit a quota limit. Continue this work package in the same worktree; do not commit.\n\nSpec:\n%s\n\nGit status:\n%s\n\nGit diff (first 400 lines):\n%s' \
         "$(cat "$spec")" "$(git -C "$workdir" status --short)" "$(git -C "$workdir" diff | head -400)"
       # The run's model file must name the new engine's model before run_agy/run_codex read it.
-      read -r model effort tier _ < <(CREW_ENGINE_FORCE="$target_engine" board model "$wp")
+      read -r model effort tier _ < <(CREW_ENGINE_FORCE="$target_engine" board model "$wp" | tr -d '\r')
       printf '%s %s %s\n' "$model" "$effort" "$tier" >"$run/model"
       
       echo "failover to $target_engine"

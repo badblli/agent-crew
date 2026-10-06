@@ -28,7 +28,7 @@ board step "$wp" working
 echo running >"$run/status"
 
 status=0
-read -r model effort tier engine < <(board model "$wp")
+read -r model effort tier engine < <(board model "$wp" | tr -d '\r')
 if [[ "$engine" == "agy" ]]; then
   resume_agy "$wp" "$run" "$workdir" "Message from the tech lead (Claude): $message
 

@@ -1,6 +1,6 @@
 {
   "name": "agent-crew",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Make Claude Code the tech lead of a named team of coding agents: work packages, parallel worktrees, review, live crew board and decision band.",
   "author": { "name": "badblli" },
   "license": "MIT",

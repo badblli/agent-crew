@@ -437,6 +437,9 @@ async function refreshOnce($: any) {
   const parts = snap.agents.filter(a => a.isRunning).map(a => `${a.member.name} ▶ ${ago(c, snap.checkedAt - a.startedAt)}`)
   if (snap.prOpen) parts.push(`${snap.prOpen} ${S.prOpen}`)
   if (snap.decision) parts.push('⚑')
+  // The quota summary rides on the status line so it stays visible whatever pane is in front.
+  const quota = quotaLine(await read($, usage))
+  if (quota) parts.push(quota)
   void Promise.resolve($.ui.status(parts.length ? `${S.board} · ${parts.join(' · ')}` : undefined)).catch(() => undefined)
 }
 
@@ -615,6 +618,18 @@ async function warnOnce($: any) {
 }
 
 /** Called from the crew's single session.start hook. */
+/** One-line quota summary for the status line and the board: `✳ 12% · ◎ 30% · ✦ 431k`. */
+function quotaLine(v: UsageView): string {
+  const five = (ws: UsageWindow[]) => ws.find(w => w.label === 'five_hour')?.percent
+  const parts: string[] = []
+  const c = five(v.claude)
+  if (c !== undefined) parts.push(`✳ ${c}%`)
+  const x = five(v.codex?.windows ?? [])
+  if (x !== undefined) parts.push(`◎ ${x}%`)
+  if (v.agy) parts.push(`✦ ${kTokensBig(v.agy.tokensToday)}${v.agy.isLimited ? ' !' : ''}`)
+  return parts.join(' · ')
+}
+
 async function startUsage($: any) {
   const c = await loadUsageConfig($)
   await update($, usage, v => ({ ...v, ...c }))
@@ -849,6 +864,7 @@ export const register: Register = on => {
     const t = await read($, tick)
     const hp = await read($, health)
     if (!c.isActive) return <Text dimColor>{S.notConfigured}</Text>
+    const q = await read($, usage)
     const BoardSvg = (e.surface === 'desktop' || e.surface === 'mobile' ? ($.ui.resolve(e) as any).Svg : undefined) as any
     return (
       <Box flexDirection="column" gap={1}>
@@ -858,6 +874,12 @@ export const register: Register = on => {
             source={banner(`◆ ${(c.project || 'crew').toUpperCase()}${snap.themeTitle ? ` · ${snap.themeTitle}` : ''}`, snap.phase || S.noPhase, snap.agents.map(x => x.member.color), snap.lead.color)}
             alt={`${c.project} · ${snap.phase}`}
           />
+        )}
+        {quotaLine(q) !== '' && (
+          <Box flexDirection="row" gap={1}>
+            <Text color="yellow">⚡ {quotaLine(q)}</Text>
+            <Button key="open-quota" label={c.lang === 'tr' ? 'kota' : 'quota'} plain onPress={() => $.ui.open({ id: USAGE_PANE, title: usageStrings(c.lang).title.toLowerCase() })} />
+          </Box>
         )}
         <Box flexDirection="column" borderStyle="round" borderColor={snap.lead.color} paddingX={1}>
           <Text>
