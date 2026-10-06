@@ -740,7 +740,12 @@ export const register: Register = on => {
     await refresh($).catch(() => undefined)
     $.clock.every(3000, () => void refresh($).catch(() => undefined))
     $.clock.every(300, () => void update($, tick, n => (n + 1) % 1000))
-    if (c.isActive) void openBoard($).catch(() => undefined)
+    if (c.isActive) {
+      // All three panes on start: board, agents, quota.
+      void openBoard($).catch(() => undefined)
+      void openAgents($).catch(() => undefined)
+      void $.ui.open({ id: USAGE_PANE, title: usageStrings(c.lang).title.toLowerCase() }).catch(() => undefined)
+    }
     await startUsage($).catch(() => undefined)
     return next(e)
   })

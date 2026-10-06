@@ -2,7 +2,7 @@
 
 **Make Claude Code the tech lead of a named crew of coding agents — and watch them work.**
 
-Claude Code plans the work, splits it into work packages, hands each one to a Codex agent in its
+Claude Code plans the work, splits it into work packages, hands each one to a coding agent (Codex or Gemini via the Antigravity CLI) in its
 own git worktree, reviews the diff, re-runs the tests itself, commits, opens the PR and merges when
 CI is green. You stay the product owner: critical decisions come to you in a decision band; everything
 else shows up live on a crew board inside Claude Code.
@@ -12,13 +12,24 @@ else shows up live on a crew board inside Claude Code.
 
 ## What you get
 
-- **Crew board** (`/crew`): phase, roadmap progress, every agent with its step, model and token use.
-- **One pane per agent**: task, step timeline, live commands and file edits, a colored diff viewer, and
-  the conversation between the lead, the agent and you. Send a note to an agent — it goes through
-  the lead first.
+- **Three panes**, opened when the session starts:
+  - **Crew board** (`/crew`): phase, roadmap progress, every agent with its work package, step, model,
+    token use and a live "now" line (the command it runs or the file it edits).
+  - **Agents** (`/crew-agents`): one pane to browse every agent with tabs (keys 1–9, `p`/`n`): step
+    track, live commands and edits, a colored diff viewer, and the conversation between the lead, the
+    agent and you. Send a note to an agent — it goes through the lead first.
+  - **Quota** (`/quota`): Claude plan windows and context, Codex 5-hour and weekly limits, Gemini tokens
+    today; a toast when an engine passes 90 %.
+  On desktop and mobile the panes draw SVG dials, a Poké-ball step track and a team banner; the
+  terminal gets colored text bars.
 - **Decision band** above the prompt when the lead needs you; pick an option with a key.
 - **Model routing**: each work package declares a tier (light / standard / deep / peak); review rounds
   resume the same agent thread on the same model so the cached prompt is reused.
+- **Two engines**: `- Engine: codex|agy` per work package (or `CREW_ENGINE`). When an engine hits its
+  usage limit the run is marked *paused* with its reset time; with `CREW_FAILOVER=agy|codex` the work
+  continues on the other engine in the same worktree.
+- **Second opinion (optional)**: `jev_route.py` asks TypeSafe's Jev for engine, tier, risk and whether
+  the user must decide — one cheap request per work package.
 - **Themes**: Pokémon-style (default, with a battle-dialog decision band), Pac-Man, Fantasy, Classic.
   Agent ids never change, so switching themes is one line.
 - **Two skills**: `crew-init` sets a project up; `crew-lead` is the lead's playbook (write WP →
@@ -44,17 +55,19 @@ you ──► Claude Code (lead) ──► work package (.crew/plan/wp/*.md)
 /plugin install agent-crew@agent-crew
 ```
 
-Then, in a project: *"set up the crew in this project"* (runs `crew-init`), and `/crew` to open the board.
+Then, in a project: *"set up the crew in this project"* (runs `crew-init`). The board, agents and quota
+panes open on the next session start (Turkish projects also get `/ekip`, `/ajanlar`, `/kota`).
 
 Requirements: Claude Code with plugin hooks, the Codex CLI (logged in), git, GitHub CLI (`gh`),
-Python 3, bash.
+Python 3, bash. Optional: the Antigravity CLI `agy` (signed in; set sandbox permissions in
+`~/.gemini/antigravity-cli/settings.json`), `TYPESAFE_API_KEY` for Jev.
 
 ## Project layout it creates
 
 ```text
 .crew/config.json        project, lang (en|tr), planDir, stateDir
 .crew/plan/              team.json (roster, steps, phases, themes), models.json, wp/*.md
-.crew/bin/               board.py, run-wp.sh, tell.sh, lib.sh
+.crew/bin/               board.py, run-wp.sh, tell.sh, lib.sh, sync.sh, usage.py, jev_route.py
 .crew/state/             board, conversations, runs (git-ignored)
 AGENTS.md                rules every agent reads
 ```
