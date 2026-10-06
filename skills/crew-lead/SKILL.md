@@ -58,6 +58,15 @@ Keep `board.py phase "<phase>" "<focus>"` current. Every WP that exists should b
 an agent and a step. Never edit `.crew/bin/*.sh` while agents run without the private-copy guard
 (the shipped scripts already re-exec from a temp copy).
 
+## Worktrees and node_modules
+
+`run-wp.sh` links the main checkout's `node_modules` folders into each new worktree (a junction on
+Windows, a symlink elsewhere) because agents cannot install packages. Before deleting a worktree by
+hand, remove those links first (`cmd /c rmdir <worktree>pps\web
+ode_modules` on Windows,
+`rm <link>` elsewhere) so no tool follows them into the main checkout. agy cannot run builds that need
+to leave its sandbox (`npm run build`); the lead runs them, agents use `npx tsc --noEmit`.
+
 ## Safety
 
 - Agents run sandboxed (`-s workspace-write`) and never write Git; the lead commits.
