@@ -58,6 +58,13 @@ Keep `board.py phase "<phase>" "<focus>"` current. Every WP that exists should b
 an agent and a step. Never edit `.crew/bin/*.sh` while agents run without the private-copy guard
 (the shipped scripts already re-exec from a temp copy).
 
+## Design work
+
+Screens and visual work go to an engine with a design skill (Codex `frontend-design` skill, or Claude's
+`frontend-design` plugin): add `- Skill: frontend-design` to the WP and say "use your frontend-design
+skill" in it. For a large redesign, show the user a mockup first and record the approved direction in the
+WP. Keep agy/Gemini for logic and backend work unless the user says otherwise.
+
 ## Worktrees and node_modules
 
 `run-wp.sh` links the main checkout's `node_modules` folders into each new worktree (a junction on
