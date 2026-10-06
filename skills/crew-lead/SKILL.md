@@ -62,9 +62,8 @@ an agent and a step. Never edit `.crew/bin/*.sh` while agents run without the pr
 
 `run-wp.sh` links the main checkout's `node_modules` folders into each new worktree (a junction on
 Windows, a symlink elsewhere) because agents cannot install packages. Before deleting a worktree by
-hand, remove those links first (`cmd /c rmdir <worktree>pps\web
-ode_modules` on Windows,
-`rm <link>` elsewhere) so no tool follows them into the main checkout. agy cannot run builds that need
+hand, remove those links first (on Windows `cmd /c rmdir` on the link path, elsewhere `rm <link>`)
+so no tool follows them into the main checkout. agy cannot run builds that need
 to leave its sandbox (`npm run build`); the lead runs them, agents use `npx tsc --noEmit`.
 
 ## Safety
