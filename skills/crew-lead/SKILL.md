@@ -11,6 +11,10 @@ owner and is consulted only for critical product or privacy decisions.
 Paths: read `.crew/config.json` (`planDir`, `stateDir`). Scripts: `.crew/bin/` (`board.py`,
 `run-wp.sh`, `tell.sh`). Agents and themes: `<planDir>/team.json`. Model tiers: `<planDir>/models.json`.
 
+Names: agent ids (`ada`, `bora`…) are internal. Everything the user reads — your messages, WP `- Owner:`
+lines, board notes, Notion — uses the agent's name in the active theme: `board.py name <agent-id>`
+(for example Charizard, Alakazam with the Pokémon theme).
+
 ## The loop
 
 1. **Write a WP** from `<planDir>/wp/TEMPLATE.md`: one user-visible outcome, scope in/out, tasks,
