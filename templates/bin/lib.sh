@@ -104,6 +104,27 @@ is_transient_failure() {
     | grep -qE 'capacity|disconnect|timed out|overloaded|rate limit'
 }
 
+# last_failure <run-dir> <engine>: the engine's latest failure event (Codex turn.failed, or an agy
+# result that did not succeed). Engine-specific, so a run that failed over does not re-read the
+# previous engine's failure.
+last_failure() {
+  if [[ "$2" == "agy" ]]; then
+    grep '"event":"result"' "$1/events.jsonl" | tail -1 | grep -v '"status":"SUCCESS"'
+  else
+    grep '"type":"turn.failed"' "$1/events.jsonl" | tail -1
+  fi
+}
+
+# is_quota_failure <run-dir> <engine>: the engine hit its usage limit; retrying before the reset
+# time cannot help, so the run is paused (or fails over) instead.
+is_quota_failure() {
+  if [[ "$2" == "agy" ]]; then
+    last_failure "$1" "$2" | grep -qEi 'usage limit|try again at|quota|exhausted|(^|[^[:alnum:]])429([^[:alnum:]]|$)'
+  else
+    last_failure "$1" "$2" | grep -qEi 'usage limit|try again at'
+  fi
+}
+
 # finish_run <wp> <run-dir> <status>
 finish_run() {
   local wp="$1" run="$2" status="$3"

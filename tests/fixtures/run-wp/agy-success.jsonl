@@ -1,0 +1,2 @@
+{"event":"init","conversation_id":"9c3d5e7f-1a2b-4c6d-8e0f-a1b2c3d4e5f6","init":{"model":"gemini-3.8-flash-medium","cwd":"C:/work/demo","permission_mode":"proceed-in-sandbox"}}
+{"event":"result","result":{"conversation_id":"9c3d5e7f-1a2b-4c6d-8e0f-a1b2c3d4e5f6","status":"SUCCESS","response":"## Summary\nDone."}}

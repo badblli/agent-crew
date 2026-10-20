@@ -4,7 +4,7 @@
 #   .crew/bin/board.py assign <wp-id> <agent-id>    # first: who does it (<planDir>/team.json)
 #   .crew/bin/run-wp.sh <wp-id> [base-ref]          # new worktree ../<repo>-wt/<wp-id>
 #   WP_IN_PLACE=1 .crew/bin/run-wp.sh <wp-id>       # use the current checkout instead
-#   WP_RESUME_RUN=<run dir> .crew/bin/run-wp.sh <wp-id>   # continue a transiently failed run
+#   WP_RESUME_RUN=<run dir> .crew/bin/run-wp.sh <wp-id>   # continue a transiently failed or paused run
 #
 # Logs: <stateDir>/runs/<wp-id>/<timestamp>/ (events.jsonl, report.md, status); conversation:
 # <stateDir>/chat/<wp-id>.jsonl. Lead feedback to a running/finished agent: .crew/bin/tell.sh.
@@ -93,13 +93,14 @@ fi
 
 max_attempts="${WP_ATTEMPTS:-4}"
 attempt=1
-while [[ $status -ne 0 && $attempt -lt $max_attempts ]] && is_transient_failure "$run"; do
-  # Check if it's a quota failure
+while [[ $status -ne 0 && $attempt -lt $max_attempts ]] \
+  && { is_quota_failure "$run" "$engine" || is_transient_failure "$run"; }; do
+  # A quota failure pauses the run or fails over. WP_RESUME_RUN on a paused run means the limit has
+  # reset: its first pass resumes the thread instead of pausing again on the old failure event.
   resume_at=""
-  if grep '"type":"turn.failed"' "$run/events.jsonl" | tail -1 | grep -qEi 'usage limit|try again at'; then
-    resume_at="$(grep '"type":"turn.failed"' "$run/events.jsonl" | tail -1 | grep -oEi 'try again at [^"]+' || echo 'later')"
-  elif grep '"event":"result"' "$run/events.jsonl" | tail -1 | grep -qEi 'usage limit|try again at|quota|exhausted|429'; then
-    resume_at="$(grep '"event":"result"' "$run/events.jsonl" | tail -1 | grep -oEi 'try again at [^"]+' || echo 'later')"
+  if [[ ! ( -n "${WP_RESUME_RUN:-}" && $attempt -eq 1 ) ]] && is_quota_failure "$run" "$engine"; then
+    resume_at="$(last_failure "$run" "$engine" | grep -oEi 'try again at [^"]+' | head -1 || true)"
+    resume_at="${resume_at:-later}"
   fi
 
   if [[ -n "$resume_at" ]]; then

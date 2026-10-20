@@ -1,0 +1,2 @@
+{"event":"init","conversation_id":"d429e1c8-fb03-4827-921a-44b8a23336c3","init":{"model":"gemini-3.8-flash-medium","cwd":"C:/work/demo","permission_mode":"proceed-in-sandbox"}}
+{"event":"result","result":{"conversation_id":"d429e1c8-fb03-4827-921a-44b8a23336c3","status":"ERROR","error":{"code":400,"status":"INVALID_ARGUMENT","message":"Unknown model gemini-x."}}}

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"0199f3a2-5c1e-7d40-9b8a-3e2f1c0d4b6a"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Reading AGENTS.md."}}
+{"type":"turn.failed","error":{"message":"exceeded retry limit, last status: 429 Too Many Requests: rate limit reached for requests. Please try again in 20s."}}
