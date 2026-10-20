@@ -3,6 +3,7 @@
 root="$(git rev-parse --show-toplevel)"
 board() { PYTHONUTF8=1 python -u "$root/.crew/bin/board.py" "$@"; }
 read -r plan_dir state_dir < <(board paths)
+plan_dir="${plan_dir%$'\r'}"; state_dir="${state_dir%$'\r'}"  # board.py prints CRLF on Windows
 
 # The global npm `codex` may be too old for the account's models; prefer the desktop app's binary.
 codex_bin="${CODEX_BIN:-}"
