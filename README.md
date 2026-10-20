@@ -1,5 +1,7 @@
 # agent-crew
 
+[![CI](https://github.com/badblli/agent-crew/actions/workflows/ci.yml/badge.svg)](https://github.com/badblli/agent-crew/actions/workflows/ci.yml)
+
 **Make Claude Code the tech lead of a named crew of coding agents — and watch them work.**
 
 Claude Code plans the work, splits it into work packages, hands each one to a coding agent (Codex or Gemini via the Antigravity CLI) in its
