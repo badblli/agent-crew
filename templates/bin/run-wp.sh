@@ -12,11 +12,13 @@ set -euo pipefail
 # Bash reads a script while running it; run from a private copy so the lead can edit the team
 # scripts while agents are working.
 if [[ -z "${TEAM_SCRIPT_DIR:-}" ]]; then
-  export TEAM_SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  TEAM_SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  export TEAM_SCRIPT_DIR
   copy="$(mktemp)"
   cp "$0" "$copy"
   exec bash "$copy" "$@"
 fi
+# shellcheck source=lib.sh
 source "$TEAM_SCRIPT_DIR/lib.sh"
 
 wp="${1:?usage: run-wp.sh <wp-id> [base-ref]}"

@@ -1,4 +1,5 @@
 # Shared helpers for the team scripts (sourced, not executed).
+# shellcheck shell=bash
 
 root="$(git rev-parse --show-toplevel)"
 board() { PYTHONUTF8=1 python -u "$root/.crew/bin/board.py" "$@"; }
@@ -8,6 +9,7 @@ plan_dir="${plan_dir%$'\r'}"; state_dir="${state_dir%$'\r'}"  # board.py prints 
 # The global npm `codex` may be too old for the account's models; prefer the desktop app's binary.
 codex_bin="${CODEX_BIN:-}"
 if [[ -z "$codex_bin" ]]; then
+  # shellcheck disable=SC2012  # newest install first; the paths have no odd characters
   codex_bin="$(ls -t "$LOCALAPPDATA"/OpenAI/Codex/bin/*/codex.exe 2>/dev/null | head -1 || true)"
   codex_bin="${codex_bin:-codex}"
 fi
@@ -33,7 +35,7 @@ run_agy() {
   local agy_bin="${AGY_BIN:-$LOCALAPPDATA/agy/bin/agy.exe}"
   local rc
   
-  read -r model effort tier < "$run/model"
+  read -r model effort _ < "$run/model"
   
   set +e
   (cd "$workdir" && "$agy_bin" -p "$prompt" --output-format stream-json --sandbox --mode accept-edits --print-timeout "${AGY_TIMEOUT:-55m}" --model "$model" --effort "$effort" </dev/null) 2>>"$run/stderr.log" \
@@ -78,7 +80,7 @@ resume_agy() {
   local agy_bin="${AGY_BIN:-$LOCALAPPDATA/agy/bin/agy.exe}"
   local rc
   
-  read -r model effort tier < "$run/model"
+  read -r model effort _ < "$run/model"
   
   set +e
   (cd "$workdir" && "$agy_bin" -p "$message" --conversation "$thread" --output-format stream-json --sandbox --mode accept-edits --print-timeout "${AGY_TIMEOUT:-55m}" --model "$model" --effort "$effort" </dev/null) 2>>"$run/stderr.log" \
@@ -129,7 +131,7 @@ is_quota_failure() {
 finish_run() {
   local wp="$1" run="$2" status="$3"
   if [[ $status -eq 0 ]]; then
-    echo done >"$run/status"
+    echo "done" >"$run/status"
     board report "$wp" "$run/report.md"
     board step "$wp" reported
   else

@@ -9,15 +9,18 @@ set -euo pipefail
 # Bash reads a script while running it; run from a private copy so the lead can edit the team
 # scripts while agents are working.
 if [[ -z "${TEAM_SCRIPT_DIR:-}" ]]; then
-  export TEAM_SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  TEAM_SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  export TEAM_SCRIPT_DIR
   copy="$(mktemp)"
   cp "$0" "$copy"
   exec bash "$copy" "$@"
 fi
+# shellcheck source=lib.sh
 source "$TEAM_SCRIPT_DIR/lib.sh"
 
 wp="${1:?usage: tell.sh <wp-id> \"<message>\"}"
 message="${2:?message required}"
+# shellcheck disable=SC2012  # run dirs are timestamps; ls sorts them oldest first
 run="$(ls -d "$state_dir/runs/$wp"/2*/ 2>/dev/null | tail -1)"
 run="${run%/}"
 
@@ -35,7 +38,7 @@ board step "$wp" working
 echo running >"$run/status"
 
 status=0
-read -r model effort tier engine < <(board model "$wp" | tr -d '\r')
+read -r _ _ _ engine < <(board model "$wp" | tr -d '\r')
 if [[ "$engine" == "agy" ]]; then
   resume_agy "$wp" "$run" "$workdir" "Message from the tech lead (Claude): $message
 
