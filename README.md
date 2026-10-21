@@ -65,6 +65,17 @@ Requirements: Claude Code with plugin hooks, the Codex CLI (logged in), git, Git
 Python 3, bash. Optional: the Antigravity CLI `agy` (signed in; set sandbox permissions in
 `~/.gemini/antigravity-cli/settings.json`), `TYPESAFE_API_KEY` for Jev.
 
+## Updating
+
+`/plugin update agent-crew@agent-crew`, then start a new session. On session start the plugin brings
+each crew project's `.crew/bin/` up to the installed version (`tools/sync_bin.py`) and says which
+files changed; commit them. A script you edited in the project is left as is and named in a toast.
+Nothing is replaced while an agent run is active. Opt out per project with `"autoUpdate": false` in
+`.crew/config.json`, or run it by hand: `python <plugin root>/tools/sync_bin.py --project .`.
+
+Changing a script in `templates/bin/`? Run `python tools/sync_bin.py --record` so installed
+projects recognise the old version as safe to replace (CI checks this).
+
 Worktrees do not link the main checkout's `node_modules` by default. Linking them with
 `CREW_LINK_NODE_MODULES=1` allows an agent to modify that shared directory; use it only if you
 accept that access. The lead can run dependency-based checks in the main checkout after review.

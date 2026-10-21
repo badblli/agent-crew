@@ -70,6 +70,8 @@ const STRINGS = {
     s: 's', m: 'm', h: 'h',
     quickNotes: ['Continue', 'Re-run the tests', 'Keep the scope smaller', 'Explain your last change'],
     agentsTitle: 'agents', openAgents: 'Browse the crew agents one by one', prev: '‹ previous', next: 'next ›', nowDoing: 'now',
+    binUpdated: (v: string, files: string) => `Crew scripts updated to agent-crew ${v} (${files}); commit .crew/bin`,
+    binKept: (files: string) => `Crew scripts changed in this project, not updated: ${files}`,
   },
   tr: {
     board: 'ekip', noPhase: 'Faz bilgisi yok', roadmap: 'Yol haritası', decisionWaiting: '⚑ Karar bekliyor: ',
@@ -92,6 +94,8 @@ const STRINGS = {
     s: 'sn', m: 'dk', h: 'sa',
     quickNotes: ['Devam et', 'Testleri yeniden çalıştır', 'Kapsamı küçült', 'Son değişikliğini açıkla'],
     agentsTitle: 'ajanlar', openAgents: 'Ekip ajanlarını tek panelde sırayla gez', prev: '‹ önceki', next: 'sonraki ›', nowDoing: 'şimdi',
+    binUpdated: (v: string, files: string) => `Ekip script'leri agent-crew ${v} sürümüne güncellendi (${files}); .crew/bin'i commit et`,
+    binKept: (files: string) => `Bu projede değiştirilmiş ekip script'leri güncellenmedi: ${files}`,
   },
 }
 type Strings = (typeof STRINGS)['en']
@@ -620,6 +624,21 @@ async function warnOnce($: any) {
   }
 }
 
+/** Brings .crew/bin up to the installed plugin's templates (tools/sync_bin.py keeps local edits). */
+async function syncBin($: any, c: CrewConfig) {
+  const script = `${$.plugin.root}/tools/sync_bin.py`
+  for (const py of ['python', 'python3', 'py']) {
+    const r = await $.process.run([py, script, '--project', '.', '--auto', '--json'], { timeoutMs: 20000 }).catch(() => null)
+    if (!r || r.exitCode !== 0) continue
+    const out = JSON.parse(r.stdout)
+    const S = strings(c)
+    const changed = [...out.updated, ...out.added]
+    if (changed.length) void Promise.resolve($.ui.toast(S.binUpdated(out.version, changed.join(', ')))).catch(() => undefined)
+    if (out.kept.length) void Promise.resolve($.ui.toast(S.binKept(out.kept.join(', ')))).catch(() => undefined)
+    return
+  }
+}
+
 /** Called from the crew's single session.start hook. */
 /** One-line quota summary for the status line and the board: `✳ 12% · ◎ 30% · ✦ 431k`. */
 function quotaLine(v: UsageView): string {
@@ -759,6 +778,7 @@ export const register: Register = on => {
     $.clock.every(3000, () => void refresh($).catch(() => undefined))
     $.clock.every(300, () => void update($, tick, n => (n + 1) % 1000))
     if (c.isActive) {
+      void syncBin($, c).catch(() => undefined)
       // All three panes on start: board, agents, quota.
       void openBoard($).catch(() => undefined)
       void openAgents($).catch(() => undefined)

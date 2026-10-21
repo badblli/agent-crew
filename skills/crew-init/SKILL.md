@@ -29,8 +29,10 @@ The plugin's files are in this plugin's root (the directory that contains `.clau
      `stateDir: .crew/state` unless the project already has a plan dir).
    - `plan/` → `<planDir>/` (`team.json`, `models.json`, `wp/TEMPLATE.md`). Set `team.json.theme`.
      If `lang` is `tr`, translate step labels, roles and phase labels.
-   - `bin/` → `.crew/bin/` (`board.py`, `jev_route.py`, `lib.sh`, `run-wp.sh`, `sync.sh`,
-     `tell.sh`, `usage.py`); keep LF line endings.
+   - `bin/` → `.crew/bin/`: run `python <plugin root>/tools/sync_bin.py --project .` (copies
+     `board.py`, `jev_route.py`, `lib.sh`, `run-wp.sh`, `sync.sh`, `tell.sh`, `usage.py` with LF
+     line endings). The plugin re-runs it on every session start, so later plugin updates reach
+     the project; `"autoUpdate": false` in `.crew/config.json` turns that off.
    - `AGENTS.md` → project root (merge carefully if one exists). Fill `{{…}}`: project summary from
      the README, language, test commands you verified, privacy rule.
 4. **Git hygiene:** add `<stateDir>/`, `.env`, and `.env.*` (except `.env.example`) to `.gitignore`;

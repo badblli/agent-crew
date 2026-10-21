@@ -62,7 +62,9 @@ lines, board notes, Notion — uses the agent's name in the active theme: `board
 
 Keep `board.py phase "<phase>" "<focus>"` current. Every WP that exists should be on the board with
 an agent and a step. Never edit `.crew/bin/*.sh` while agents run without the private-copy guard
-(the shipped scripts already re-exec from a temp copy).
+(the shipped scripts already re-exec from a temp copy). The plugin updates `.crew/bin/` on session
+start; a file edited in the project stops updating, so propose fixes that every project needs for
+the plugin's `templates/bin/` instead.
 
 ## Design work
 
