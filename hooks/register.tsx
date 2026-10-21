@@ -70,6 +70,10 @@ const STRINGS = {
     s: 's', m: 'm', h: 'h',
     quickNotes: ['Continue', 'Re-run the tests', 'Keep the scope smaller', 'Explain your last change'],
     agentsTitle: 'agents', openAgents: 'Browse the crew agents one by one', prev: '‹ previous', next: 'next ›', nowDoing: 'now',
+    binUpdated: (v: string, files: string) => `Crew scripts updated to agent-crew ${v} (${files}); commit .crew/bin`,
+    binKept: (files: string) => `Crew scripts changed in this project, not updated: ${files}`,
+    updateAvailable: (latest: string, installed: string) =>
+      `agent-crew ${latest} is out (you have ${installed}): /plugin update agent-crew@agent-crew`,
   },
   tr: {
     board: 'ekip', noPhase: 'Faz bilgisi yok', roadmap: 'Yol haritası', decisionWaiting: '⚑ Karar bekliyor: ',
@@ -92,6 +96,10 @@ const STRINGS = {
     s: 'sn', m: 'dk', h: 'sa',
     quickNotes: ['Devam et', 'Testleri yeniden çalıştır', 'Kapsamı küçült', 'Son değişikliğini açıkla'],
     agentsTitle: 'ajanlar', openAgents: 'Ekip ajanlarını tek panelde sırayla gez', prev: '‹ önceki', next: 'sonraki ›', nowDoing: 'şimdi',
+    binUpdated: (v: string, files: string) => `Ekip script'leri agent-crew ${v} sürümüne güncellendi (${files}); .crew/bin'i commit et`,
+    binKept: (files: string) => `Bu projede değiştirilmiş ekip script'leri güncellenmedi: ${files}`,
+    updateAvailable: (latest: string, installed: string) =>
+      `agent-crew ${latest} çıktı (sende ${installed} var): /plugin update agent-crew@agent-crew`,
   },
 }
 type Strings = (typeof STRINGS)['en']
@@ -620,6 +628,50 @@ async function warnOnce($: any) {
   }
 }
 
+/** Brings .crew/bin up to the installed plugin's templates (tools/sync_bin.py keeps local edits). */
+async function syncBin($: any, c: CrewConfig) {
+  const script = `${$.plugin.root}/tools/sync_bin.py`
+  for (const py of ['python', 'python3', 'py']) {
+    const r = await $.process.run([py, script, '--project', '.', '--auto', '--json'], { timeoutMs: 20000 }).catch(() => null)
+    if (!r || r.exitCode !== 0) continue
+    const out = JSON.parse(r.stdout)
+    const S = strings(c)
+    const changed = [...out.updated, ...out.added]
+    if (changed.length) void Promise.resolve($.ui.toast(S.binUpdated(out.version, changed.join(', ')))).catch(() => undefined)
+    if (out.kept.length) void Promise.resolve($.ui.toast(S.binKept(out.kept.join(', ')))).catch(() => undefined)
+    return
+  }
+}
+
+// Update notice: at most one GET a day to the published manifest; nothing is sent. Off with the
+// plugin's `updateCheck` option.
+const UPDATE_URL = 'https://raw.githubusercontent.com/badblli/agent-crew/main/.claude-plugin/plugin.json'
+const UPDATE_EVERY_MS = 24 * 60 * 60 * 1000
+
+/** True when version `latest` (x.y.z) is newer than `installed`. */
+export function isNewer(latest: string, installed: string): boolean {
+  const parts = (v: string) => v.split('.').map(n => parseInt(n, 10) || 0)
+  const a = parts(latest)
+  const b = parts(installed)
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0)
+  }
+  return false
+}
+
+async function checkUpdate($: any, c: CrewConfig) {
+  const last = (await $.store.get('updateCheck')) as { at: number } | undefined
+  const now = Date.now()
+  if (last && now - last.at < UPDATE_EVERY_MS) return
+  await $.store.set('updateCheck', { at: now })
+  const installed = (await readJson($, `${$.plugin.root}/.claude-plugin/plugin.json`, null))?.version
+  const r = await $.http.fetch(UPDATE_URL).catch(() => null)
+  const latest = r?.ok ? (JSON.parse(r.text)?.version ?? '') : ''
+  if (installed && latest && isNewer(latest, installed)) {
+    void Promise.resolve($.ui.toast(strings(c).updateAvailable(latest, installed))).catch(() => undefined)
+  }
+}
+
 /** Called from the crew's single session.start hook. */
 /** One-line quota summary for the status line and the board: `✳ 12% · ◎ 30% · ✦ 431k`. */
 function quotaLine(v: UsageView): string {
@@ -656,7 +708,7 @@ async function usageCommand($: any, command: string) {
 }
 
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
   // Quota pane.
   on('session.measure', async ($, e, next) => {
     await refreshClaude($).catch(() => undefined)
@@ -759,6 +811,8 @@ export const register: Register = on => {
     $.clock.every(3000, () => void refresh($).catch(() => undefined))
     $.clock.every(300, () => void update($, tick, n => (n + 1) % 1000))
     if (c.isActive) {
+      void syncBin($, c).catch(() => undefined)
+      if (options.updateCheck !== false) void checkUpdate($, c).catch(() => undefined)
       // All three panes on start: board, agents, quota.
       void openBoard($).catch(() => undefined)
       void openAgents($).catch(() => undefined)

@@ -22,8 +22,9 @@ fi
 source "$TEAM_SCRIPT_DIR/lib.sh"
 
 wp="${1:?usage: run-wp.sh <wp-id> [base-ref]}"
-# Default base: the remote's default branch (origin/HEAD), else origin/main.
-default_ref="$(git -C "$root" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/main)"
+# Default base: the remote's default branch (origin/HEAD), else origin/main, else main (no remote).
+default_ref="$(git -C "$root" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null \
+  || { git -C "$root" rev-parse -q --verify origin/main >/dev/null && echo origin/main; } || echo main)"
 base="${2:-$default_ref}"
 spec="$plan_dir/wp/$wp.md"
 if [[ ! -f "$spec" ]]; then
@@ -42,7 +43,7 @@ if [[ "${WP_IN_PLACE:-0}" == "1" ]]; then
 else
   workdir="$(dirname "$root")/$(basename "$root")-wt/$wp"
   if [[ ! -d "$workdir" ]]; then
-    git -C "$root" fetch -q origin
+    git -C "$root" fetch -q origin 2>/dev/null || true  # local-only repo: no remote
     git -C "$root" worktree add -b "codex/$wp" "$workdir" "$base"
   fi
 fi
