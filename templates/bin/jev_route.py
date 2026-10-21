@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Route a work package with Jev (TypeSafe System One): engine, tier, escalation, risk.
 
-Usage: python .crew/bin/jev_route.py <wp-spec.md> [--json]
+Usage: python .crew/bin/jev_route.py <wp-spec.md> --allow-external [--json]
 
 One request, four independent questions over the same state. Stdlib only.
 The API key comes from TYPESAFE_API_KEY or the project root .env and is never printed.
@@ -171,6 +171,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("wp", help="work package markdown file")
     ap.add_argument("--json", action="store_true", help="machine-readable output")
+    ap.add_argument("--allow-external", action="store_true",
+                    help="send the parsed work package to TypeSafe (requires explicit approval)")
     args = ap.parse_args(argv)
 
     def fallback(reason):
@@ -180,6 +182,8 @@ def main(argv=None):
             print(f"Jev routing unavailable ({reason}); decide engine and tier manually.")
         return 0
 
+    if not args.allow_external:
+        return fallback("external routing not enabled; pass --allow-external after reviewing the WP")
     with open(args.wp, encoding="utf-8") as fh:
         state = parse_wp(fh.read())
     key = load_key(find_root())

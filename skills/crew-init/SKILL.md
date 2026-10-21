@@ -18,19 +18,24 @@ The plugin's files are in this plugin's root (the directory that contains `.clau
    `git symbolic-ref refs/remotes/origin/HEAD`), whether it is public, how tests/lint/build run (CI
    workflow, Makefile, package.json, pyproject). Check the Codex CLI: prefer the newest
    `%LOCALAPPDATA%/OpenAI/Codex/bin/*/codex.exe` on Windows, else `codex` on PATH; run
-   `codex exec -s read-only "Reply OK"` once to confirm the account model works.
+   `codex exec -s read-only "Reply OK"` once to confirm the account model works. Verify that
+   `plan/models.json` names models available to this account; adapt unavailable model IDs before
+   starting an agent.
 2. **Ask the user only what you cannot infer** (one AskUserQuestion): crew language (en/tr),
-   theme (pokemon default, pacman, fantasy, classic), and — if the repo is public — what must never
-   be committed (customer names, partner products…).
+   theme (classic default, pokemon, pacman, fantasy), and categories of private information that
+   must never be committed. Do not ask the user to paste secrets or private examples.
 3. **Copy templates** from `<plugin root>/templates/` into the project:
    - `config.json` → `.crew/config.json` (set `project`, `lang`; keep `planDir: .crew/plan`,
      `stateDir: .crew/state` unless the project already has a plan dir).
    - `plan/` → `<planDir>/` (`team.json`, `models.json`, `wp/TEMPLATE.md`). Set `team.json.theme`.
      If `lang` is `tr`, translate step labels, roles and phase labels.
-   - `bin/` → `.crew/bin/` (`board.py`, `lib.sh`, `run-wp.sh`, `tell.sh`); keep LF line endings.
+   - `bin/` → `.crew/bin/` (`board.py`, `jev_route.py`, `lib.sh`, `run-wp.sh`, `sync.sh`,
+     `tell.sh`, `usage.py`); keep LF line endings.
    - `AGENTS.md` → project root (merge carefully if one exists). Fill `{{…}}`: project summary from
      the README, language, test commands you verified, privacy rule.
-4. **Git hygiene:** add `<stateDir>/` to `.gitignore`; add `*.sh text eol=lf` to `.gitattributes`.
+4. **Git hygiene:** add `<stateDir>/`, `.env`, and `.env.*` (except `.env.example`) to `.gitignore`;
+   check `git ls-files` for any already tracked private files, since ignore rules do not untrack them.
+   Add `*.sh text eol=lf` to `.gitattributes`.
    Commit on a branch and open a PR (`chore(crew): set up agent crew`) — never push to a protected
    branch directly.
 5. **Verify:** `python .crew/bin/board.py paths`, `python .crew/bin/board.py phase "D0 Setup" "Crew ready"`.

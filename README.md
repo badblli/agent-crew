@@ -31,8 +31,9 @@ else shows up live on a crew board inside Claude Code.
   usage limit the run is marked *paused* with its reset time; with `CREW_FAILOVER=agy|codex` the work
   continues on the other engine in the same worktree.
 - **Second opinion (optional)**: `jev_route.py` asks TypeSafe's Jev for engine, tier, risk and whether
-  the user must decide — one cheap request per work package.
-- **Themes**: Pokémon-style (default, with a battle-dialog decision band), Pac-Man, Fantasy, Classic.
+  the user must decide — one request per work package, only when explicitly enabled. It sends the
+  work package title, summary, goal, tasks and acceptance criteria to TypeSafe.
+- **Themes**: Classic (default), Pokémon-style (with a battle-dialog decision band), Pac-Man, Fantasy.
   Agent ids never change, so switching themes is one line.
 - **Two skills**: `crew-init` sets a project up; `crew-lead` is the lead's playbook (write WP →
   run agent → review for real → feedback → ship → merge on green).
@@ -64,6 +65,10 @@ Requirements: Claude Code with plugin hooks, the Codex CLI (logged in), git, Git
 Python 3, bash. Optional: the Antigravity CLI `agy` (signed in; set sandbox permissions in
 `~/.gemini/antigravity-cli/settings.json`), `TYPESAFE_API_KEY` for Jev.
 
+Worktrees do not link the main checkout's `node_modules` by default. Linking them with
+`CREW_LINK_NODE_MODULES=1` allows an agent to modify that shared directory; use it only if you
+accept that access. The lead can run dependency-based checks in the main checkout after review.
+
 ## Project layout it creates
 
 ```text
@@ -73,6 +78,10 @@ Python 3, bash. Optional: the Antigravity CLI `agy` (signed in; set sandbox perm
 .crew/state/             board, conversations, runs (git-ignored)
 AGENTS.md                rules every agent reads
 ```
+
+The installed crew creates project-specific WPs and local run logs in the destination project.
+Review WPs before committing them; keep `.crew/state/` and `.env*` out of Git. Test fixtures in
+the plugin should use synthetic events rather than captured agent conversations.
 
 ## License
 

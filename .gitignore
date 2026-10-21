@@ -1,2 +1,7 @@
 node_modules/
 .claude/
+__pycache__/
+.env
+.env.*
+!.env.example
+.crew/state/

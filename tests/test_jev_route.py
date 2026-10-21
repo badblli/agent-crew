@@ -80,7 +80,7 @@ def test_success_json_and_key_not_leaked(wp_file, monkeypatch, capsys):
         return RAW
 
     monkeypatch.setattr(jev, "post", fake_post)
-    assert jev.main([str(wp_file), "--json"]) == 0
+    assert jev.main([str(wp_file), "--json", "--allow-external"]) == 0
     out = capsys.readouterr().out
     assert SECRET not in out
     assert seen["key"] == SECRET and seen["payload"]["state"]["title"] == "WP9 Parser fix"
@@ -95,17 +95,24 @@ def test_success_json_and_key_not_leaked(wp_file, monkeypatch, capsys):
 def test_human_output(wp_file, monkeypatch, capsys):
     monkeypatch.setenv("TYPESAFE_API_KEY", SECRET)
     monkeypatch.setattr(jev, "post", lambda p, k: RAW)
-    assert jev.main([str(wp_file)]) == 0
+    assert jev.main([str(wp_file), "--allow-external"]) == 0
     out = capsys.readouterr().out
     assert "engine: codex" in out and "tier: deep" in out and "risk: medium" in out
     assert SECRET not in out
 
 
 def test_fallback_without_key(wp_file, capsys):
+    assert jev.main([str(wp_file), "--json", "--allow-external"]) == 0
+    assert json.loads(capsys.readouterr().out)["fallback"] is True
+    assert jev.main([str(wp_file), "--allow-external"]) == 0
+    assert "manually" in capsys.readouterr().out
+
+
+def test_no_external_call_by_default(wp_file, monkeypatch, capsys):
+    monkeypatch.setenv("TYPESAFE_API_KEY", SECRET)
+    monkeypatch.setattr(jev, "post", lambda *_: pytest.fail("unexpected external call"))
     assert jev.main([str(wp_file), "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["fallback"] is True
-    assert jev.main([str(wp_file)]) == 0
-    assert "manually" in capsys.readouterr().out
 
 
 def test_fallback_on_api_failure(wp_file, monkeypatch, capsys):
@@ -115,6 +122,6 @@ def test_fallback_on_api_failure(wp_file, monkeypatch, capsys):
         raise urllib.error.HTTPError(jev.URL, 401, "bad key", {}, None)
 
     monkeypatch.setattr(jev, "post", boom)
-    assert jev.main([str(wp_file), "--json"]) == 0
+    assert jev.main([str(wp_file), "--json", "--allow-external"]) == 0
     out = capsys.readouterr().out
     assert json.loads(out)["fallback"] is True and SECRET not in out
