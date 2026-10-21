@@ -67,6 +67,10 @@ Python 3, bash. Optional: the Antigravity CLI `agy` (signed in; set sandbox perm
 
 ## Updating
 
+In a crew project the plugin checks GitHub once a day for a newer version and shows a toast when
+one is out: a single read of the published `plugin.json`, nothing sent. Turn it off with the
+plugin's *Check for updates* option (`updateCheck`).
+
 `/plugin update agent-crew@agent-crew`, then start a new session. On session start the plugin brings
 each crew project's `.crew/bin/` up to the installed version (`tools/sync_bin.py`) and says which
 files changed; commit them. A script you edited in the project is left as is and named in a toast.
