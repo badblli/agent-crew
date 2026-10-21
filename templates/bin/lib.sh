@@ -9,8 +9,10 @@ plan_dir="${plan_dir%$'\r'}"; state_dir="${state_dir%$'\r'}"  # board.py prints 
 # The global npm `codex` may be too old for the account's models; prefer the desktop app's binary.
 codex_bin="${CODEX_BIN:-}"
 if [[ -z "$codex_bin" ]]; then
-  # shellcheck disable=SC2012  # newest install first; the paths have no odd characters
-  codex_bin="$(ls -t "$LOCALAPPDATA"/OpenAI/Codex/bin/*/codex.exe 2>/dev/null | head -1 || true)"
+  if [[ -n "${LOCALAPPDATA:-}" ]]; then
+    # shellcheck disable=SC2012  # newest install first; the paths have no odd characters
+    codex_bin="$(ls -t "$LOCALAPPDATA"/OpenAI/Codex/bin/*/codex.exe 2>/dev/null | head -1 || true)"
+  fi
   codex_bin="${codex_bin:-codex}"
 fi
 
@@ -32,7 +34,8 @@ run_codex() {
 # Streams NDJSON into <run-dir>/events.jsonl, writes the final result.response to report.md, conversation id to thread
 run_agy() {
   local wp="$1" run="$2" workdir="$3" prompt="$4"
-  local agy_bin="${AGY_BIN:-$LOCALAPPDATA/agy/bin/agy.exe}"
+  local agy_bin="${AGY_BIN:-agy}"
+  [[ -n "${AGY_BIN:-}" || -z "${LOCALAPPDATA:-}" ]] || agy_bin="$LOCALAPPDATA/agy/bin/agy.exe"
   local rc
   
   read -r model effort _ < "$run/model"
@@ -77,7 +80,8 @@ resume_agy() {
   thread="$(cat "$run/thread" 2>/dev/null || true)"
   [[ -n "$thread" ]] || { echo "no thread id in $run/thread" >&2; return 1; }
   
-  local agy_bin="${AGY_BIN:-$LOCALAPPDATA/agy/bin/agy.exe}"
+  local agy_bin="${AGY_BIN:-agy}"
+  [[ -n "${AGY_BIN:-}" || -z "${LOCALAPPDATA:-}" ]] || agy_bin="$LOCALAPPDATA/agy/bin/agy.exe"
   local rc
   
   read -r model effort _ < "$run/model"

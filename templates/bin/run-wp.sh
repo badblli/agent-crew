@@ -47,8 +47,8 @@ else
   fi
 fi
 
-# Agents cannot install packages (sandbox, no network): link the main checkout's node_modules
-# into the worktree so type checks and builds work. Junctions need no admin rights on Windows.
+# Optional dependency sharing. The linked directory is writable from the worktree and points
+# outside it, so keep this disabled unless the project owner accepts that risk.
 link_node_modules() {
   local src rel
   while IFS= read -r src; do
@@ -61,7 +61,9 @@ link_node_modules() {
     fi
   done < <(find "$root" -maxdepth 3 -type d -name node_modules -not -path "*/node_modules/*" 2>/dev/null)
 }
-[[ "${WP_IN_PLACE:-0}" == "1" ]] || link_node_modules
+if [[ "${WP_IN_PLACE:-0}" != "1" && "${CREW_LINK_NODE_MODULES:-0}" == "1" ]]; then
+  link_node_modules
+fi
 
 run="${WP_RESUME_RUN:-$state_dir/runs/$wp/$(date +%Y%m%d-%H%M%S)}"
 mkdir -p "$run"

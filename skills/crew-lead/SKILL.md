@@ -21,9 +21,11 @@ lines, board notes, Notion — uses the agent's name in the active theme: `board
    measurable acceptance criteria, `- Summary:` in the crew language, `- Engine:` (codex or agy, default codex), `- Model:` tier
    (light for mechanical, standard by default, deep for correctness-critical, peak only with a
    reason). Never put private data (customer names, secrets) in a WP that will be committed.
-   If `TYPESAFE_API_KEY` is available, get a second opinion from Jev before assigning:
-   `python .crew/bin/jev_route.py <wp.md>` (engine, tier, needs_user_decision, risk; one cheap
-   request, falls back silently without a key). You still decide.
+   Only if the user has explicitly enabled external routing for this project and the WP has been
+   checked for private data, get a second opinion from Jev before assigning:
+   `python .crew/bin/jev_route.py <wp.md> --allow-external` (engine, tier,
+   needs_user_decision, risk). This sends the WP title, summary, goal, tasks and acceptance criteria
+   to TypeSafe. An available `TYPESAFE_API_KEY` alone is not consent. You still decide.
    * **Engines:** Use `codex` by default. Use `agy` for tasks benefiting from its unique capabilities.
    * **Quota Failover:** If an engine hits a usage limit, the runner will pause the WP. If `CREW_FAILOVER=<engine>` is set, it will automatically hand over the work to the other engine with the current diff.
    * **Cross-review:** You can manually use `agy` to review a Codex diff read-only by running `agy --mode plan` on the worktree.
@@ -71,11 +73,11 @@ WP. Keep agy/Gemini for logic and backend work unless the user says otherwise.
 
 ## Worktrees and node_modules
 
-`run-wp.sh` links the main checkout's `node_modules` folders into each new worktree (a junction on
-Windows, a symlink elsewhere) because agents cannot install packages. Before deleting a worktree by
-hand, remove those links first (on Windows `cmd /c rmdir` on the link path, elsewhere `rm <link>`)
-so no tool follows them into the main checkout. agy cannot run builds that need
-to leave its sandbox (`npm run build`); the lead runs them, agents use `npx tsc --noEmit`.
+Worktrees do not share the main checkout's `node_modules` by default. The lead runs dependency-based
+checks in the main checkout after reviewing the diff. If the project owner explicitly accepts a
+writable link into the main checkout, set `CREW_LINK_NODE_MODULES=1` for that run. Before deleting
+such a worktree by hand, remove those links first (on Windows `cmd /c rmdir` on the link path,
+elsewhere `rm <link>`) so no tool follows them into the main checkout.
 
 ## Safety
 
