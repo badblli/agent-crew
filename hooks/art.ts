@@ -44,25 +44,23 @@ export function quotaDials(gauges: Gauge[], legend: string): string {
   )
 }
 
-/** Poké-ball step track: done = filled ball, current = glowing ball, upcoming = hollow. */
+/** Step track: done = filled circle with a check, current = pulsing filled circle, upcoming = hollow. */
 export function stepTrack(labels: string[], at: number, color: string, isFailed: boolean): string {
   const gap = 46
   const w = Math.max(1, labels.length) * gap
-  const balls = labels.map((label, i) => {
+  const marks = labels.map((label, i) => {
     const x = i * gap + gap / 2
     const state = i < at ? 'done' : i === at ? 'now' : 'next'
-    const top = state === 'next' ? 'none' : isFailed && state === 'now' ? '#ef4444' : color
+    const fill = state === 'next' ? 'none' : isFailed && state === 'now' ? '#ef4444' : color
     return (
-      (i > 0 ? `<line x1="${x - gap + 9}" y1="14" x2="${x - 9}" y2="14" stroke="${i <= at ? color : '#8885'}" stroke-width="2"/>` : '') +
-      (state === 'now' ? `<circle cx="${x}" cy="14" r="12" fill="${top}" opacity="0.25"><animate attributeName="r" values="10;13;10" dur="1.6s" repeatCount="indefinite"/></circle>` : '') +
-      `<path d="M ${x - 8} 14 A 8 8 0 0 1 ${x + 8} 14 Z" fill="${top}" stroke="#888" stroke-width="1"/>` +
-      `<path d="M ${x - 8} 14 A 8 8 0 0 0 ${x + 8} 14 Z" fill="${state === 'next' ? 'none' : '#f5f5f5'}" stroke="#888" stroke-width="1"/>` +
-      `<line x1="${x - 8}" y1="14" x2="${x + 8}" y2="14" stroke="#555" stroke-width="1.2"/>` +
-      `<circle cx="${x}" cy="14" r="2.6" fill="#fff" stroke="#555" stroke-width="1"/>` +
+      (i > 0 ? `<line x1="${x - gap + 8}" y1="14" x2="${x - 8}" y2="14" stroke="${i <= at ? color : '#8885'}" stroke-width="2"/>` : '') +
+      (state === 'now' ? `<circle cx="${x}" cy="14" r="11" fill="${fill}" opacity="0.25"><animate attributeName="r" values="9;12;9" dur="1.6s" repeatCount="indefinite"/></circle>` : '') +
+      `<circle cx="${x}" cy="14" r="7" fill="${fill}" stroke="${state === 'next' ? '#888' : fill}" stroke-width="1.5"/>` +
+      (state === 'done' ? `<path d="M${x - 3.2} 14 l2.2 2.4 l4.2 -4.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>` : '') +
       `<text x="${x}" y="38" text-anchor="middle" font-size="8.5" fill="${state === 'now' ? color : '#999'}" font-weight="${state === 'now' ? 700 : 400}">${esc(label)}</text>`
     )
   })
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} 44" font-family="system-ui,sans-serif">${balls.join('')}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} 44" font-family="system-ui,sans-serif">${marks.join('')}</svg>`
 }
 
 /** Banner: project title over a band of team-colour stripes. */

@@ -139,57 +139,57 @@
         }
       }
     },
-    "pokemon": {
-      "title": "Pokémon",
-      "bar": "pokeball",
+    "tamer": {
+      "title": "Creature Tamer",
+      "bar": "orb",
       "lead": {
-        "name": "Pikachu",
+        "name": "Voltik",
         "avatar": "⚡",
         "color": "#facc15"
       },
       "user": {
-        "name": "Ash",
+        "name": "Tamer",
         "avatar": "🧢",
         "color": "#60a5fa"
       },
       "agents": {
         "builder": {
-          "name": "Charizard",
+          "name": "Blazeback",
           "avatar": "🔥",
           "color": "#f97316"
         },
         "analyst": {
-          "name": "Alakazam",
+          "name": "Mindrel",
           "avatar": "🔮",
           "color": "#a78bfa"
         },
         "api": {
-          "name": "Porygon",
+          "name": "Prismo",
           "avatar": "💠",
           "color": "#22d3ee"
         },
         "ui": {
-          "name": "Jigglypuff",
+          "name": "Melodee",
           "avatar": "🎤",
           "color": "#f472b6"
         },
         "qa": {
-          "name": "Bulbasaur",
+          "name": "Sproutle",
           "avatar": "🌱",
           "color": "#4ade80"
         },
         "scribe": {
-          "name": "Chatot",
+          "name": "Parlo",
           "avatar": "🦜",
           "color": "#38bdf8"
         }
       }
     },
-    "pacman": {
-      "title": "Pac-Man",
-      "bar": "pacman",
+    "arcade": {
+      "title": "Arcade Maze",
+      "bar": "maze",
       "lead": {
-        "name": "Pac-Man",
+        "name": "Chomper",
         "avatar": "ᗧ",
         "color": "#facc15"
       },
@@ -200,32 +200,32 @@
       },
       "agents": {
         "builder": {
-          "name": "Blinky",
+          "name": "Rumble",
           "avatar": "ᗣ",
           "color": "#ef4444"
         },
         "analyst": {
-          "name": "Inky",
+          "name": "Flicker",
           "avatar": "ᗣ",
           "color": "#22d3ee"
         },
         "api": {
-          "name": "Clyde",
+          "name": "Dodger",
           "avatar": "ᗣ",
           "color": "#fb923c"
         },
         "ui": {
-          "name": "Pinky",
+          "name": "Blush",
           "avatar": "ᗣ",
           "color": "#f472b6"
         },
         "qa": {
-          "name": "Sue",
+          "name": "Wobble",
           "avatar": "ᗣ",
           "color": "#a78bfa"
         },
         "scribe": {
-          "name": "Fruit",
+          "name": "Bonus",
           "avatar": "🍒",
           "color": "#38bdf8"
         }

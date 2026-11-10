@@ -99,7 +99,7 @@ flowchart LR
 - **İkinci görüş (isteğe bağlı)**: `jev_route.py` TypeSafe'in Jev'ine motor, seviye, risk ve kullanıcının
   karar vermesi gerekip gerekmediğini sorar. Yalnızca açıkça etkinleştirildiğinde, iş paketi başına tek
   istek. İş paketinin başlığını, özetini, hedefini, görevlerini ve kabul kriterlerini TypeSafe'e gönderir.
-- **Temalar**: Classic (varsayılan), Pokémon tarzı (savaş diyaloğu biçiminde karar bandı), Pac-Man,
+- **Temalar**: Classic (varsayılan), Creature Tamer (savaş diyaloğu biçiminde karar bandı), Arcade Maze,
   Fantasy. Ajan id'leri hiç değişmez; tema değiştirmek tek satır.
 - **İki skill**: `crew-init` projeyi kurar; `crew-lead` liderin oyun kitabıdır (netleştir → WP yaz →
   ajanı çalıştır → gerçekten incele → geri bildirim → teslim → yeşilde merge).

@@ -99,7 +99,7 @@ flowchart LR
 - **Second opinion (optional)**: `jev_route.py` asks TypeSafe's Jev for engine, tier, risk and whether
   the user must decide — one request per work package, only when explicitly enabled. It sends the
   work package title, summary, goal, tasks and acceptance criteria to TypeSafe.
-- **Themes**: Classic (default), Pokémon-style (with a battle-dialog decision band), Pac-Man, Fantasy.
+- **Themes**: Classic (default), Creature Tamer (with a battle-dialog decision band), Arcade Maze, Fantasy.
   Agent ids never change, so switching themes is one line.
 - **Two skills**: `crew-init` sets a project up; `crew-lead` is the lead's playbook (clarify → write WP →
   run agent → review for real → feedback → ship → merge on green).
