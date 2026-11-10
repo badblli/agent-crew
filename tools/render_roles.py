@@ -13,6 +13,31 @@ from pathlib import Path
 PLUGIN = Path(__file__).resolve().parent.parent
 ROLES = PLUGIN / "templates" / "roles"
 ENGINES = {"claude", "codex"}
+FALLBACK_PREAMBLE = """# Fallback lead (Codex)
+
+You are the fallback lead. Read `.crew/config.json` and `<planDir>/handoff.md` first.
+Act as lead only if `python .crew/bin/board.py lead` prints `codex` or the user explicitly asks you
+to take over; otherwise do the user's request as a normal Codex session and leave the crew alone.
+The rules in this preamble take precedence over the Claude-only instructions below.
+- Allowed: write and assign WPs; run `run-wp.sh` with Codex/agy workers; use `tell.sh`;
+  review diffs and re-run tests; commit in the agent worktree, push the branch, open a PR,
+  and record `board.py step <wp> pr_open`. Claude workers share the exhausted quota.
+- Not allowed: merging PRs, pushing to the default branch, history rewrites, sending data
+  to new external services, changing `.crew/config.json` or permissions. Leave these to
+  the user or the Claude lead; stop shipping at `pr_open` even when CI is green.
+- Ask the user in your own chat (Codex has no decision band); record the answer in the WP.
+- Before stopping: run `board.py handoff` (or `board.py handoff --to claude` when returning
+  control), fill `## Next`, and list every PR you opened for the Claude lead to review.
+  Keep the handoff card at most 40 lines. Board panes appear again when Claude returns.
+
+"""
+
+
+def render_lead() -> bytes:
+    text = (PLUGIN / "skills/crew-lead/SKILL.md").read_text(encoding="utf-8")
+    header, body = text[4:].split("\n---\n", 1)
+    # Keep the source frontmatter, which provides Codex's required name and description.
+    return ("---\n" + header + "\n---\n\n" + FALLBACK_PREAMBLE + body.lstrip()).encode("utf-8")
 
 
 def digest(data: bytes) -> str:
@@ -73,6 +98,8 @@ def sync(project: Path, engines: list[str] | None = None) -> dict:
             suffix = "md" if engine == "claude" else "toml"
             rel = f".{engine}/agents/crew-{meta['name']}.{suffix}"
             prepared.append((rel, render(meta, body, engine, routing)))
+    if "codex" in config.get("engines", []):
+        prepared.append((".agents/skills/crew-lead/SKILL.md", render_lead()))
     result = {"added": [], "updated": [], "kept": []}
     for rel, data in prepared:
         dest = project / rel
