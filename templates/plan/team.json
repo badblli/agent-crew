@@ -17,37 +17,42 @@
       "id": "builder",
       "name": "Builder",
       "color": "#f97316",
-      "role": "Codex · backend / core"
+      "role": "backend / core",
+      "engine": "codex"
     },
     {
       "id": "analyst",
       "name": "Analyst",
       "color": "#a78bfa",
-      "role": "Codex · data / measurement"
+      "role": "data / measurement",
+      "engine": "codex"
     },
     {
       "id": "api",
       "name": "Connector",
       "color": "#22d3ee",
-      "role": "Codex · API / integrations"
+      "role": "API / integrations",
+      "engine": "codex"
     },
     {
       "id": "ui",
       "name": "Designer",
       "color": "#f472b6",
-      "role": "Codex · UI"
+      "role": "UI",
+      "engine": "codex"
     },
     {
       "id": "qa",
       "name": "Tester",
       "color": "#4ade80",
-      "role": "Codex · tests / quality"
+      "role": "tests / quality",
+      "engine": "codex"
     },
     {
       "id": "scribe",
       "name": "Scribe",
       "color": "#38bdf8",
-      "role": "Claude · docs & notes",
+      "role": "docs & notes",
       "engine": "claude"
     }
   ],

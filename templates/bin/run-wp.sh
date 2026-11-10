@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run one work package with its assigned Codex agent in its own git worktree.
+# Run one work package with its assigned engine in its own git worktree.
 #
 #   .crew/bin/board.py assign <wp-id> <agent-id>    # first: who does it (<planDir>/team.json)
 #   .crew/bin/run-wp.sh <wp-id> [base-ref]          # new worktree ../<repo>-wt/<wp-id>
@@ -71,11 +71,15 @@ mkdir -p "$run"
 [[ -n "${WP_RESUME_RUN:-}" ]] || cp "$spec" "$run/spec.md"
 printf '%s\n' "$workdir" >"$run/workdir"
 [[ -n "${WP_RESUME_RUN:-}" ]] || printf '%s %s %s\n' "$model" "$effort" "$tier" >"$run/model"
+if [[ -n "${WP_RESUME_RUN:-}" && -f "$run/engine" ]]; then
+  engine="$(tr -d '\r\n' < "$run/engine")"
+  read -r model effort tier < "$run/model"
+fi
 echo running >"$run/status"
 board step "$wp" working
 
 prompt="You are ${agent:-a member} of the project crew, working on work package $wp.
-Claude Code is the tech lead and reviews your work. Read AGENTS.md (and the roadmap it links), then do
+Claude Code is the tech lead and reviews your work. Read AGENTS.md and only the references your WP needs, then do
 the work package below. Work only inside $workdir. Do not commit; the lead commits after review.
 Write short progress messages at each milestone, in the language AGENTS.md names. Finish with the report format from
 AGENTS.md.
@@ -89,17 +93,13 @@ status=0
 if [[ -n "${WP_RESUME_RUN:-}" ]]; then
   status=1
 else
-  if [[ "$engine" == "agy" ]]; then
-    run_agy "$wp" "$run" "$workdir" "$prompt" || status=$?
-  else
-    run_codex "$wp" "$run" "$workdir" -s workspace-write -m "$model" -c "model_reasoning_effort=\"$effort\"" --json -o "$run/report.md" "$prompt" || status=$?
-  fi
+  run_worker "$engine" "$wp" "$run" "$workdir" "$prompt" || status=$?
 fi
 
 max_attempts="${WP_ATTEMPTS:-4}"
 attempt=1
 while [[ $status -ne 0 && $attempt -lt $max_attempts ]] \
-  && { is_quota_failure "$run" "$engine" || is_transient_failure "$run"; }; do
+  && { is_quota_failure "$run" "$engine" || is_transient_failure "$run" "$engine"; }; do
   # A quota failure pauses the run or fails over. WP_RESUME_RUN on a paused run means the limit has
   # reset: its first pass resumes the thread instead of pausing again on the old failure event.
   resume_at=""
@@ -115,11 +115,9 @@ while [[ $status -ne 0 && $attempt -lt $max_attempts ]] \
     
     # Check failover
     target_engine=""
-    if [[ "$engine" == "codex" && "${CREW_FAILOVER:-}" == "agy" ]]; then
-      target_engine="agy"
-    elif [[ "$engine" == "agy" && "${CREW_FAILOVER:-}" == "codex" ]]; then
-      target_engine="codex"
-    fi
+    case "${CREW_FAILOVER:-}" in
+      codex|agy|claude) [[ "$CREW_FAILOVER" == "$engine" ]] || target_engine="$CREW_FAILOVER" ;;
+    esac
     
     if [[ -n "$target_engine" ]]; then
       # Handover prompt
@@ -133,11 +131,7 @@ while [[ $status -ne 0 && $attempt -lt $max_attempts ]] \
       engine="$target_engine"
       echo running >"$run/status"
       status=0
-      if [[ "$engine" == "agy" ]]; then
-        run_agy "$wp" "$run" "$workdir" "$handoff_prompt" || status=$?
-      else
-        run_codex "$wp" "$run" "$workdir" -s workspace-write -m "$model" -c "model_reasoning_effort=\"$effort\"" --json -o "$run/report.md" "$handoff_prompt" || status=$?
-      fi
+      run_worker "$engine" "$wp" "$run" "$workdir" "$handoff_prompt" || status=$?
       continue
     else
       # No failover, just pause
@@ -151,13 +145,11 @@ while [[ $status -ne 0 && $attempt -lt $max_attempts ]] \
   echo "retry $attempt" >"$run/status"
   [[ -n "${WP_RESUME_RUN:-}" && $attempt -eq 2 ]] || sleep $((60 * (attempt - 1)))
   status=0
-  if [[ "$engine" == "agy" && -z "$(tr -d '[:space:]' < "$run/thread" 2>/dev/null)" ]]; then
+  if [[ ( "$engine" == "agy" || "$engine" == "claude" ) && ! -s "$run/thread" ]]; then
     # The provider failed before a conversation existed: start the work package again.
-    run_agy "$wp" "$run" "$workdir" "$prompt" || status=$?
-  elif [[ "$engine" == "agy" ]]; then
-    resume_agy "$wp" "$run" "$workdir" "The previous turn stopped because of a transient provider error. Continue the work package from where you left off; check git status first." || status=$?
+    run_worker "$engine" "$wp" "$run" "$workdir" "$prompt" || status=$?
   else
-    resume_codex "$wp" "$run" "$workdir" \
+    resume_worker "$engine" "$wp" "$run" "$workdir" \
       "The previous turn stopped because of a transient provider error. Continue the work package from where you left off; check git status first." \
       || status=$?
   fi

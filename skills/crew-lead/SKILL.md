@@ -15,10 +15,42 @@ Names: agent ids (`ada`, `bora`…) are internal. Everything the user reads — 
 lines, board notes, Notion — uses the agent's name in the active theme: `board.py name <agent-id>`
 (for example Charizard, Alakazam with the Pokémon theme).
 
+## Engines and visible sessions
+
+Read `config.engines`: `["claude"]`, `["codex"]`, or `["claude","codex"]`. A Claude-only crew
+uses Claude Code worker sessions; a Codex-only crew uses Codex workers; a mixed crew chooses per WP
+or roster member. The lead remains Claude Code in all three setups. Honor the selected engines.
+agy remains an optional explicit engine for projects that have configured it.
+
+At the start, tell the user once: `/rename <project> lead`. The model cannot execute this built-in
+slash command itself. Every Claude worker is named `<agent display name> · <wp>` by run-wp.sh.
+Use that pipeline for WP work, including Claude work; the Agent tool creates in-session subagents
+that are not separately visible and is only for tiny read-only helpers.
+
+When the user asks to watch a worker, read its latest `<stateDir>/runs/<wp>/<timestamp>/thread`
+and give `claude --resume <session_id>` (headless sessions reopen by id). Do not start a second
+writer while its current turn is running. tell.sh resumes the same session for review feedback.
+The agent conversation includes an `open:` command. Optional `CREW_CLAUDE_BG=1` starts
+`claude --bg --name "<agent> · <wp>"`, with no `-p`; it appears in `claude agents`. Give
+`claude attach "<agent> · <wp>"` to watch it live. This launch-only mode has no streamed chat,
+report or usage: run status stays `background` and the lead records stop with `board.py step`
+after checking the session. Use attach for feedback in this mode; tell.sh rejects a background run
+to avoid concurrent writers. Do not interpret successful background launch as WP completion.
+`CREW_CLAUDE_PERMISSION_MODE` overrides the permission mode for initial, resumed and background
+Claude workers; default `auto` allows the worker to run WP test commands. `acceptEdits` alone
+only auto-accepts file edits and leaves Bash denied in a headless `-p` run.
+
+Shared role sources are rendered with `tools/render_roles.py` from the plugin into native
+`.claude/agents/` and/or `.codex/agents/` definitions. They do not replace the WP runner or the
+parent's permission policy. `AGENTS.md` is the short common core, imported by `CLAUDE.md`;
+consult `rule.md`, `feature.md` and relevant `docs/adr/` on demand. Do not read plan/history/handoff,
+notes or completed-WP archives unless the assigned WP links them.
+
 ## The loop
 
 1. **Write a WP** from `<planDir>/wp/TEMPLATE.md`: one user-visible outcome, scope in/out, tasks,
-   measurable acceptance criteria, `- Summary:` in the crew language, `- Engine:` (codex or agy, default codex), `- Model:` tier
+   measurable acceptance criteria, `- Summary:` in the crew language, `- Engine:` (claude or codex;
+   optional agy), `- Model:` tier
    (light for mechanical, standard by default, deep for correctness-critical, peak only with a
    reason). Never put private data (customer names, secrets) in a WP that will be committed.
    Only if the user has explicitly enabled external routing for this project and the WP has been
@@ -26,8 +58,15 @@ lines, board notes, Notion — uses the agent's name in the active theme: `board
    `python .crew/bin/jev_route.py <wp.md> --allow-external` (engine, tier,
    needs_user_decision, risk). This sends the WP title, summary, goal, tasks and acceptance criteria
    to TypeSafe. An available `TYPESAFE_API_KEY` alone is not consent. You still decide.
-   * **Engines:** Use `codex` by default. Use `agy` for tasks benefiting from its unique capabilities.
-   * **Quota Failover:** If an engine hits a usage limit, the runner will pause the WP. If `CREW_FAILOVER=<engine>` is set, it will automatically hand over the work to the other engine with the current diff.
+   * **Engines:** Choose an enabled engine for the WP. Without an explicit WP or environment choice,
+     the runner uses the assigned agent's enabled engine, then the first configured engine.
+     `CREW_ENGINE` sets an environment default; `CREW_ENGINE_FORCE` overrides the WP for failover.
+   * **Quota Failover:** A usage limit pauses the WP. `CREW_FAILOVER=claude|codex|agy` hands over
+     the current diff to a different configured target. Enable only a target the user selected.
+     The run records the effective engine, so tell.sh continues that engine after failover.
+     Claude rate-limit events are retained as `<run>/rate_limit.json`, a worker hint in
+     `<stateDir>/usage/claude-workers.json`. Chat gets one warning per run only when a limit is hit
+     or status is not `allowed`; the quota pane still uses account windows from the lead session.
    * **Cross-review:** You can manually use `agy` to review a Codex diff read-only by running `agy --mode plan` on the worktree.
 2. **Assign and run:** `python .crew/bin/board.py assign <wp> <agent-id>` then
    `.crew/bin/run-wp.sh <wp> [base-ref]` in the background. Independent WPs run in parallel; two WPs

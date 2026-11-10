@@ -1,0 +1,5 @@
+hook: synthetic non-JSON output
+{"type":"system","subtype":"init","session_id":"synthetic-claude-session","model":"sonnet","cwd":"/synthetic/project"}
+{"type":"assistant","session_id":"synthetic-claude-session","message":{"content":[{"type":"thinking","thinking":"Synthetic hidden reasoning"},{"type":"text","text":"Synthetic Claude progress: checking the work package."},{"type":"tool_use","id":"synthetic-tool","name":"Read","input":{"file_path":"AGENTS.md"}}]}}
+{"type":"rate_limit_event","session_id":"synthetic-claude-session","rate_limit_info":{"status":"allowed","rateLimitType":"five_hour","utilization":0.25}}
+{"type":"result","subtype":"success","is_error":false,"session_id":"synthetic-claude-session","result":"## Summary\nSynthetic Claude report.\n\n## Tests run\nStub only.","usage":{"input_tokens":40,"output_tokens":20},"total_cost_usd":0.001}

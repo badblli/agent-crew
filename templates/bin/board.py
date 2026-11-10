@@ -13,7 +13,8 @@ Usage:
   board.py name <agent-id>                    print the agent\'s name in the active theme
   board.py paths                              print "<planDir> <stateDir>" (absolute)
   board.py model <wp>                         print "<model> <effort> <tier>" from the WP's "- Model:" line
-  board.py ingest <wp>                        read Codex --json events on stdin, log agent messages
+  board.py ingest <wp> [run-dir]              read engine JSON events, log messages and session metadata
+  board.py session <wp> "<open command>"      publish a worker's interactive session command
   board.py report <wp> <report.md>            log the agent's final report summary
   board.py decide "<question>" "<label>|<detail>" ...   ask the user (band above the prompt)
   board.py decide --clear                     remove the pending decision
@@ -86,6 +87,76 @@ def step(wp: str, step_id: str, note: str = "") -> None:
     _save(board)
 
 
+def session(wp: str, command: str) -> None:
+    board = _load()
+    item = board["items"].setdefault(wp, {})
+    if item.get("session") == command:
+        return
+    item["session"] = command
+    item["note"] = "open: " + command
+    _save(board)
+    say(wp, "claude", "open: " + command, "note")
+
+
+def ingest(wp: str, run: Path | None) -> None:
+    sender = agent_of(wp) or "agent"
+    quota_notified = bool(run and (run / "quota_notified").exists())
+    for line in sys.stdin:
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue  # Hook stdout can contain non-JSON text.
+        if not isinstance(event, dict):
+            continue
+        # Stable compact JSON also supports the existing shell failure/thread extractors.
+        print(json.dumps(event, ensure_ascii=False, separators=(",", ":")), flush=True)
+        kind = event.get("type")
+        if run and event.get("session_id"):
+            thread = str(event["session_id"])
+            (run / "thread").write_text(thread + "\n", encoding="utf-8")
+            session(wp, f"claude --resume {thread}")
+        item = event.get("item") or {}
+        if kind == "assistant":
+            for content in (event.get("message") or {}).get("content", []):
+                if content.get("type") == "text":
+                    say(wp, sender, content.get("text", ""))
+        elif kind == "result":
+            success = event.get("subtype") == "success" and not event.get("is_error", False)
+            text = event.get("result") or "\n".join(event.get("errors") or [])
+            if run:
+                (run / "report.md").write_text(text, encoding="utf-8")
+                (run / "result_status").write_text("success" if success else "error", encoding="utf-8")
+            if not success:
+                say(wp, sender, text or str(event.get("subtype", "error")), "error")
+        elif kind == "rate_limit_event":
+            hint = event.get("rate_limit_info") or {}
+            if run:
+                (run / "rate_limit.json").write_text(json.dumps(hint), encoding="utf-8")
+            usage = LEAD / "usage"
+            usage.mkdir(parents=True, exist_ok=True)
+            (usage / "claude-workers.json").write_text(
+                json.dumps({"wp": wp, "updated_at": int(time.time()), "rate_limit_info": hint}),
+                encoding="utf-8")
+            utilization = hint.get("utilization")
+            limited = (hint.get("status", "allowed") != "allowed"
+                       or isinstance(utilization, (int, float)) and utilization >= 1)
+            if limited and not quota_notified:
+                say(wp, sender, "Claude quota: " + json.dumps(hint), "note")
+                quota_notified = True
+                if run:
+                    (run / "quota_notified").write_text("notified\n", encoding="utf-8")
+        elif kind == "item.completed" and item.get("type") == "agent_message":
+            say(wp, sender, item.get("text", ""))
+        elif kind == "turn.failed":
+            say(wp, sender, "Hata: " + str((event.get("error") or {}).get("message", "")), "error")
+        elif event.get("event") == "result":
+            res = event.get("result") or {}
+            if res.get("status") == "SUCCESS":
+                say(wp, sender, res.get("response", ""))
+            else:
+                say(wp, sender, "Hata: " + str(res.get("status", "")), "error")
+
+
 def main(argv: list[str]) -> None:
     if len(argv) < 2:
         raise SystemExit(__doc__)
@@ -118,45 +189,29 @@ def main(argv: list[str]) -> None:
         engine = next((ln.split(":", 1)[1].strip().split()[0].lower() for ln in spec.splitlines()
                        if ln.startswith("- Engine:")), None)
         
-        # Engine: CREW_ENGINE_FORCE (failover) > "- Engine:" line in the WP > CREW_ENGINE > codex.
+        # Explicit WP/env choices win; otherwise use the roster's enabled engine, then config.
         import os
-        engine = os.environ.get("CREW_ENGINE_FORCE", "").lower() or engine or os.environ.get("CREW_ENGINE", "codex").lower()
+        enabled = CONFIG.get("engines", ["codex"])
+        roster_engine = next((a.get("engine") for a in TEAM["agents"] if a["id"] == agent_of(args[0])), None)
+        default_engine = roster_engine if roster_engine in enabled else enabled[0]
+        engine = (os.environ.get("CREW_ENGINE_FORCE", "").lower() or engine
+                  or os.environ.get("CREW_ENGINE", "").lower() or default_engine)
             
         tiers_key = f"{engine}_tiers" if engine != "codex" else "tiers"
         if tiers_key not in routing or tier not in routing[tiers_key]:
-            # fallback
-            if tier not in routing["tiers"]:
-                raise SystemExit(f"unknown model tier {tier}; one of {sorted(routing['tiers'])}")
-            tiers_key = "tiers"
+            raise SystemExit(f"unknown engine/tier {engine}/{tier}; check models.json")
 
-        print(routing[tiers_key][tier]["model"], routing[tiers_key][tier]["effort"], tier, engine)
+        print(routing[tiers_key][tier]["model"], routing[tiers_key][tier].get("effort", "medium"), tier, engine)
     elif cmd == "agent":
         print(agent_of(args[0]))
     elif cmd == "name":
         print(display_name(args[0]))
     elif cmd == "say":
         say(args[0], args[1], args[2])
+    elif cmd == "session":
+        session(args[0], args[1])
     elif cmd == "ingest":
-        wp = args[0]
-        sender = agent_of(wp) or "agent"
-        for line in sys.stdin:
-            sys.stdout.write(line)
-            sys.stdout.flush()
-            try:
-                event = json.loads(line)
-            except ValueError:
-                continue
-            item = event.get("item") or {}
-            if event.get("type") == "item.completed" and item.get("type") == "agent_message":
-                say(wp, sender, item.get("text", ""))
-            elif event.get("type") == "turn.failed":
-                say(wp, sender, "Hata: " + str((event.get("error") or {}).get("message", "")), "error")
-            elif event.get("event") == "result":
-                res = event.get("result") or {}
-                if res.get("status") == "SUCCESS":
-                    say(wp, sender, res.get("response", ""))
-                else:
-                    say(wp, sender, "Hata: " + str(res.get("status", "")), "error")
+        ingest(args[0], Path(args[1]) if len(args) > 1 else None)
     elif cmd == "decide":
         path = LEAD / "decision.json"
         if args == ["--clear"]:
