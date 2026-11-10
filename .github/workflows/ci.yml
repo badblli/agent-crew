@@ -49,6 +49,30 @@ jobs:
           claude plugin install agent-crew@agent-crew
           claude plugin details agent-crew@agent-crew
 
+  codex-install:
+    name: Codex plugin install
+    runs-on: ubuntu-latest
+    env:
+      CODEX_CLI_VERSION: 0.162.1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g "@openai/codex@$CODEX_CLI_VERSION"
+      - name: Install and verify the Codex plugin from this checkout
+        run: |
+          codex plugin marketplace add "$GITHUB_WORKSPACE"
+          result="$(codex plugin add agent-crew@agent-crew --json)"
+          version="$(jq -er '.version' .codex-plugin/plugin.json)"
+          jq -e --arg version "$version" '.pluginId == "agent-crew@agent-crew" and .version == $version' <<< "$result"
+          installed="$(jq -er '.installedPath' <<< "$result")"
+          test -f "$installed/skills/crew-init/SKILL.md"
+          test -f "$installed/skills/crew-lead/SKILL.md"
+          test -f "$installed/.codex-plugin/hooks.json"
+          test -f "$installed/.codex-plugin/session_start.py"
+          test -f "$installed/tools/sync_bin.py"
+
   shellcheck:
     runs-on: ubuntu-latest
     steps:

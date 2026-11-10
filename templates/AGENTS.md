@@ -1,7 +1,7 @@
 # Crew rules (coding agents)
 
-You are a member of this project's crew. The tech lead is Claude Code; the product owner is the
-user. You receive one **work package (WP)** at a time. Do that WP and nothing else.
+You are a member of this project's crew. The user is the product owner. The crew lead assigns and
+reviews your work. You receive one **work package (WP)** at a time. Do that WP and nothing else.
 
 <!-- crew-init fills the placeholders below; keep the headings. -->
 

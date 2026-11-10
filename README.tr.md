@@ -1,25 +1,25 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-tr-dark.svg">
-    <img alt="agent-crew: Claude Code yönetir, kodlama ajanların teslim eder" src="docs/assets/banner-tr-light.svg" width="100%">
+    <img alt="Claude Code veya Codex liderliğinde agent-crew" src="docs/assets/banner-tr-light.svg" width="100%">
   </picture>
 </p>
 
 <p align="center">
   <a href="https://github.com/badblli/agent-crew/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/badblli/agent-crew/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Claude Code eklentisi" src="https://img.shields.io/badge/Claude%20Code-plugin-d97757">
+  <a href="#claude-code-ile-kullanım"><img alt="Claude Code eklentisi" src="https://img.shields.io/badge/Claude%20Code-plugin-d97757"></a>
+  <a href="#codex-ile-kullanım"><img alt="Codex eklentisi" src="https://img.shields.io/badge/Codex-plugin-10a37f"></a>
   <a href="LICENSE"><img alt="Lisans: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
   <br>
   <a href="README.md">English</a> · <b>Türkçe</b>
 </p>
 
-**Claude Code'u, isimli bir kodlama ajanı ekibinin teknik lideri yap ve onları çalışırken izle.**
+**Kodlama ajanlarından oluşan ekibine Claude Code veya Codex liderlik etsin.**
 
-Claude Code işi planlar, iş paketlerine böler ve her birini kendi git worktree'sinde çalışan bir
-Claude Code veya Codex ajanına verir (isteğe bağlı olarak Antigravity CLI üzerinden Gemini). Sonra
-diff'i inceler, testleri kendisi yeniden çalıştırır, commit atar, PR açar ve CI yeşil olunca merge eder.
-Ürün sahibi sen kalırsın: kritik kararlar karar bandında sana gelir; geri kalan her şey Claude Code
-içindeki canlı ekip panosunda görünür.
+Lider işi paketlere böler, her paketi ayrı bir Git worktree'sinde çalışan Claude Code veya Codex
+ajanına verir, değişiklikleri inceler, testleri yeniden çalıştırır ve PR açar. İstersen Antigravity
+CLI üzerinden Gemini ajanı da kullanabilirsin. Claude Code'da canlı pano ve karar bandı bulunur.
+Codex panoyu ve karar sorularını sohbette gösterir, CI geçtikten sonra her PR için birleştirme onayı ister.
 
 > Durum: erken aşama, her gün gerçek bir projede kullanılıyor. Windows + Git Bash ile test edildi;
 > macOS/Linux'ta çalışması beklenir (bash, git, python, gh) ama henüz test edilmedi.
@@ -34,41 +34,32 @@ içindeki canlı ekip panosunda görünür.
 
 ## 60 saniyede başla
 
-1. Claude Code'da marketplace'i ekle ve eklentiyi kur:
-
-   ```text
-   /plugin marketplace add badblli/agent-crew
-   /plugin install agent-crew@agent-crew
-   ```
-
-2. Bir proje aç ve *"bu projede ekibi kur"* de. `crew-init` hangi motorları istediğini sorar (Claude
-   ajanları, Codex ajanları ya da ikisi), `.crew/` ve talimat dosyalarını yazar, bunları bir branch'te
-   commit'leyip PR açar.
-3. Yeni bir oturum başlat. Ekip panosu, ajanlar ve kota panelleri kendiliğinden açılır.
-4. Gerçek bir iş iste: *"rapor sayfasına CSV dışa aktarma ekle"*. Lider yalnızca çıkaramadığı şeyleri
-   sorar, kabul kriterleriyle iş paketini yazar, sana gösterir, ajanları başlatır, diff'leri inceler
-   ve CI yeşil olunca merge eder.
-
-Gereksinimler [Kurulum](#kurulum) bölümünde.
+1. Agent Crew'u [Claude Code](#claude-code-ile-kullanım) veya [Codex](#codex-ile-kullanım) için kur.
+2. Bir proje aç ve *"bu projede ekibi kur"* de. `crew-init` lideri ve ajan motorlarını sorar,
+   `.crew/` ile talimat dosyalarını yazar ve kurulum PR'ını açar.
+3. Yeni bir oturum başlat. Claude Code'da paneller kendiliğinden açılır. Codex'te panoyu sohbette
+   isteyebilir veya `python .crew/bin/board.py status` komutunu çalıştırabilirsin.
+4. *"Rapor sayfasına CSV dışa aktarma ekle"* gibi bir iş iste. Lider kabul kriterleriyle iş
+   paketini yazar, ajanları başlatır, değişiklikleri inceler ve PR açar.
 
 ## Nasıl çalışır
 
 ```mermaid
 flowchart LR
-  you([Sen<br/>ürün sahibi]) -->|istek| lead[Claude Code<br/>teknik lider]
+  you([Sen<br/>ürün sahibi]) -->|istek| lead[Claude Code veya Codex<br/>teknik lider]
   lead -->|yazar| wp[İş paketi<br/>.crew/plan/wp/*.md]
   wp -->|.crew/bin/run-wp.sh| w1[Claude / Codex / Gemini ajanı<br/>kendi worktree'si, git yazmaz]
   w1 -->|olaylar, rapor| state[(.crew/state)]
-  state --> panes[Ekip panosu · ajanlar · kota]
+  state --> board[Claude Code panelleri veya Codex sohbet panosu]
   w1 -->|diff| review{Lider inceler<br/>ve yeniden test eder}
   review -->|değişiklik iste| w1
-  review -->|onay| ship[Commit · PR · yeşilde merge]
-  lead -.->|kritik karar| band[Karar bandı] -.-> you
+  review -->|onay| ship[Commit · PR · CI]
+  lead -.->|kritik karar| decision[Karar bandı veya sohbet] -.-> you
 ```
 
 ## Neler var
 
-- **Üç panel**, oturum başında açılır:
+- **Üç Claude Code paneli**, oturum başında açılır:
   - **Ekip panosu** (`/crew`, Türkçe projelerde `/ekip`): faz, yol haritası ilerlemesi, her ajanın iş
     paketi, adımı, modeli, token kullanımı ve canlı "şimdi" satırı (çalıştırdığı komut ya da düzenlediği dosya).
   - **Ajanlar** (`/crew-agents`, `/ajanlar`): sekmelerle tüm ajanlara göz atılan tek panel (1–9, `p`/`n`
@@ -78,11 +69,11 @@ flowchart LR
     limitler, bugünkü Gemini token'ları; bir motor %90'ı geçince bildirim.
   Masaüstü ve mobilde paneller SVG kadranlar, adım çizgisi ve takım bandı çizer; terminalde renkli
   metin çubukları görünür.
-- **Karar bandı**: lider sana ihtiyaç duyduğunda prompt'un üstünde çıkar; seçeneği bir tuşla seç.
+- **Kararlar ve ekip durumu** Claude Code'da karar bandı ve panellerde, Codex'te sohbette görünür.
 - **Model yönlendirme**: her iş paketi bir seviye belirtir (light / standard / deep / peak); inceleme
   turları aynı ajan thread'ini aynı modelle sürdürür, önbellekteki prompt yeniden kullanılır.
-- **Motor seçimi**: crew-init Claude ajanları, Codex ajanları ya da ikisini sorar ve `engines` olarak
-  `.crew/config.json`'a yazar. İş paketi başına `- Engine: claude|codex|agy` (veya `CREW_ENGINE`).
+- **Lider ve ajan seçimi**. Crew-init seçimini `.crew/config.json` dosyasında `lead` ve `engines`
+  alanlarına yazar. İş paketi başına `- Engine: claude|codex|agy` (veya `CREW_ENGINE`) kullan.
   İkisi de yoksa atanan ajanın etkin motoru, o da yoksa ilk yapılandırılmış motor kullanılır.
   Bir motor kullanım limitine takılınca koşu sıfırlanma zamanıyla *paused* olarak işaretlenir;
   `CREW_FAILOVER=claude|agy|codex` ile iş aynı worktree'de diğer motorda devam eder.
@@ -101,10 +92,16 @@ flowchart LR
   istek. İş paketinin başlığını, özetini, hedefini, görevlerini ve kabul kriterlerini TypeSafe'e gönderir.
 - **Temalar**: Classic (varsayılan), Creature Tamer (savaş diyaloğu biçiminde karar bandı), Arcade Maze,
   Fantasy. Ajan id'leri hiç değişmez; tema değiştirmek tek satır.
-- **İki skill**: `crew-init` projeyi kurar; `crew-lead` liderin oyun kitabıdır (netleştir → WP yaz →
-  ajanı çalıştır → gerçekten incele → geri bildirim → teslim → yeşilde merge).
+- **İki skill**. `crew-init` projeyi kurar. `crew-lead` planlama, ajanları çalıştırma, inceleme
+  ve teslim adımlarını tarif eder.
 
 ## Kurulum
+
+Her iki istemci için Git, GitHub CLI (`gh`), Python 3 ve Bash gerekir. İsteğe bağlı olarak Gemini
+ajanları için Antigravity CLI (`agy`), Jev yönlendirmesi için `TYPESAFE_API_KEY` kullanabilirsin.
+Antigravity izinleri `~/.gemini/antigravity-cli/settings.json` dosyasından ayarlanır.
+
+### Claude Code ile kullanım
 
 ```text
 /plugin marketplace add badblli/agent-crew
@@ -114,12 +111,10 @@ flowchart LR
 Ardından bir projede: *"bu projede ekibi kur"* (`crew-init` çalışır). Pano, ajanlar ve kota panelleri
 bir sonraki oturum başında açılır (Türkçe projelerde ayrıca `/ekip`, `/ajanlar`, `/kota`).
 
-Gereksinimler: plugin hook desteği olan Claude Code, git, GitHub CLI (`gh`), Python 3, bash.
-Codex ajanları için ayrıca Codex CLI (giriş yapılmış). crew-init, Codex kontrolü geçerse varsayılan
-olarak iki motoru, geçmezse Claude'u seçer. İsteğe bağlı: Antigravity CLI `agy` (giriş yapılmış; sandbox
-izinlerini `~/.gemini/antigravity-cli/settings.json` içinde ayarla), Jev için `TYPESAFE_API_KEY`.
+Eklenti hook'larını destekleyen bir Claude Code sürümü kullan. Codex ajanlarını çalıştıracaksan
+Codex CLI'ı da kur ve hesabına giriş yap.
 
-## Codex ile kullanım
+### Codex ile kullanım
 
 1. `codex plugin marketplace add badblli/agent-crew` komutunu çalıştır, ardından Codex'te
    `/plugins` menüsünden **Agent Crew** eklentisini kur.
@@ -135,7 +130,7 @@ Güncellemek için `codex plugin marketplace upgrade agent-crew` komutunu çalı
 oturumu aç. `/plugins` hâlâ eski sürümü gösteriyorsa Agent Crew eklentisini kaldırıp güncel
 marketplace'ten yeniden kur. Onaylanan hook, projenin ekip script'lerini ve rollerini günceller.
 
-## Güncelleme
+## Claude Code eklentisini güncelleme
 
 Bir ekip projesinde eklenti günde bir kez GitHub'da yeni sürüm olup olmadığına bakar ve varsa bildirim
 gösterir: yayımlanmış `plugin.json` tek seferlik okunur, hiçbir şey gönderilmez. Eklentinin
@@ -188,7 +183,7 @@ Yerel rol tanımlarını tek kaynaktan yeniden üretmek için
 bildirir ve onlara dokunmaz. Codex özel ajan tanımları kendilerini başlatmaz ve üst sandbox/onay
 yapılandırmasını geçersiz kılmaz. Depo düzeyindeki Codex skill'leri `.agents/skills/` altına konur.
 
-Lider oturumuna bir kez `/rename <proje> lead` ile ad ver. Tam WP'ler runner'ı kullanır; liderin Agent
+Claude Code'da lider oturumuna bir kez `/rename <proje> lead` ile ad ver. Tam WP'ler runner'ı kullanır; liderin Agent
 aracı yalnızca küçük, salt okunur yardımcılar içindir. Codex koşuları `workspace-write` kullanır; Claude
 ajanları varsayılan olarak `--permission-mode auto` kullanır ve aynı "git yazma yok" ekip kurallarına uyar.
 Ajan Claude rate-limit ipuçları koşu/durum dosyalarında saklanır; bir limit aşıldığında ya da durum

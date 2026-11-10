@@ -121,11 +121,11 @@ THEMES = {
 }
 
 COPY = {
-    "en": dict(tag1="Claude Code leads. Your coding agents ship.",
-               tag2="Work packages · parallel worktrees · real review · PR · merge on green",
+    "en": dict(tag1="Lead your crew with Claude Code or Codex.",
+               tag2="Work packages · parallel worktrees · code review · pull requests",
                chips=["Claude", "Codex", "Gemini"]),
-    "tr": dict(tag1="Claude Code yönetir. Kodlama ajanların teslim eder.",
-               tag2="İş paketleri · paralel worktree · gerçek inceleme · PR · yeşilde merge",
+    "tr": dict(tag1="Ekibine Claude Code veya Codex liderlik etsin.",
+               tag2="İş paketleri · paralel worktree · kod inceleme · pull request",
                chips=["Claude", "Codex", "Gemini"]),
 }
 
