@@ -1,24 +1,25 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
-    <img alt="agent-crew: Claude Code leads, your coding agents ship" src="docs/assets/banner-light.svg" width="100%">
+    <img alt="agent-crew with Claude Code or Codex as lead" src="docs/assets/banner-light.svg" width="100%">
   </picture>
 </p>
 
 <p align="center">
   <a href="https://github.com/badblli/agent-crew/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/badblli/agent-crew/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Claude Code plugin" src="https://img.shields.io/badge/Claude%20Code-plugin-d97757">
+  <a href="#use-with-claude-code"><img alt="Claude Code plugin" src="https://img.shields.io/badge/Claude%20Code-plugin-d97757"></a>
+  <a href="#use-with-codex"><img alt="Codex plugin" src="https://img.shields.io/badge/Codex-plugin-10a37f"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
   <br>
   <b>English</b> · <a href="README.tr.md">Türkçe</a>
 </p>
 
-**Make Claude Code the tech lead of a named crew of coding agents, and watch them work.**
+**Choose Claude Code or Codex to lead a named crew of coding agents.**
 
-Claude Code plans the work, splits it into work packages, hands each one to a Claude Code or Codex worker (optionally Gemini via the Antigravity CLI) in its
-own git worktree, reviews the diff, re-runs the tests itself, commits, opens the PR and merges when
-CI is green. You stay the product owner: critical decisions come to you in a decision band; everything
-else shows up live on a crew board inside Claude Code.
+The lead splits work into packages, assigns each to a Claude Code or Codex worker in its own Git
+worktree, reviews the diff, reruns tests, and opens a PR. Gemini workers are optional via the
+Antigravity CLI. Claude Code shows a live board and decision band. Codex shows board updates and
+asks for decisions in chat, including approval to merge each PR after CI passes.
 
 > Status: early, used daily on one real project. Windows + Git Bash tested; macOS/Linux should work
 > (bash, git, python, gh) but are not tested yet.
@@ -33,41 +34,32 @@ else shows up live on a crew board inside Claude Code.
 
 ## 60-second quick start
 
-1. Add the marketplace and install the plugin in Claude Code:
-
-   ```text
-   /plugin marketplace add badblli/agent-crew
-   /plugin install agent-crew@agent-crew
-   ```
-
-2. Open a project and say *"set up the crew in this project"*. `crew-init` asks which engines you
-   want (Claude workers, Codex workers or both), writes `.crew/` and the instruction files, and
-   commits them on a branch with a PR.
-3. Start a new session. The crew board, agents and quota panes open on their own.
-4. Ask for something real: *"add CSV export to the reports page"*. The lead asks only what it cannot
-   infer, writes the work package with acceptance criteria, shows it to you, starts the agents, reviews
-   their diffs, and merges when CI is green.
-
-Requirements are listed under [Install](#install).
+1. Install Agent Crew in [Claude Code](#use-with-claude-code) or [Codex](#use-with-codex).
+2. Open a project and say *"set up the crew in this project"*. `crew-init` asks for the lead and
+   worker engines, writes `.crew/` and the instruction files, and opens a setup PR.
+3. Start a new session. In Claude Code, the panes open automatically. In Codex, ask for the board
+   in chat or run `python .crew/bin/board.py status`.
+4. Try *"add CSV export to the reports page"*. The lead writes a work package with acceptance
+   criteria, starts the workers, reviews their diffs, and opens a PR.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-  you([You<br/>product owner]) -->|request| lead[Claude Code<br/>tech lead]
+  you([You<br/>product owner]) -->|request| lead[Claude Code or Codex<br/>tech lead]
   lead -->|writes| wp[Work package<br/>.crew/plan/wp/*.md]
   wp -->|.crew/bin/run-wp.sh| w1[Claude / Codex / Gemini worker<br/>own git worktree, no git writes]
   w1 -->|events, report| state[(.crew/state)]
-  state --> panes[Crew board · agents · quota panes]
+  state --> board[Claude Code panes or Codex chat board]
   w1 -->|diff| review{Lead reviews<br/>and re-tests}
   review -->|changes requested| w1
-  review -->|approved| ship[Commit · PR · merge on green CI]
-  lead -.->|critical decision| band[Decision band] -.-> you
+  review -->|approved| ship[Commit · PR · CI]
+  lead -.->|critical decision| decision[Decision band or chat] -.-> you
 ```
 
 ## What you get
 
-- **Three panes**, opened when the session starts:
+- **Three Claude Code panes**, opened when the session starts:
   - **Crew board** (`/crew`): phase, roadmap progress, every agent with its work package, step, model,
     token use and a live "now" line (the command it runs or the file it edits).
   - **Agents** (`/crew-agents`): one pane to browse every agent with tabs (keys 1–9, `p`/`n`): step
@@ -77,11 +69,11 @@ flowchart LR
     today; a toast when an engine passes 90 %.
   On desktop and mobile the panes draw SVG dials, a step track and a team banner; the
   terminal gets colored text bars.
-- **Decision band** above the prompt when the lead needs you; pick an option with a key.
+- **Decisions and status** in Claude Code's decision band and panes, or in Codex chat.
 - **Model routing**: each work package declares a tier (light / standard / deep / peak); review rounds
   resume the same agent thread on the same model so the cached prompt is reused.
-- **Engine choice**: crew-init asks for Claude workers, Codex workers or both and saves `engines`
-  in `.crew/config.json`. Set `- Engine: claude|codex|agy` per work package (or `CREW_ENGINE`).
+- **Lead and worker choice**. Crew-init saves `lead` and `engines` in `.crew/config.json`.
+  Set `- Engine: claude|codex|agy` per work package (or `CREW_ENGINE`).
   Without either, the assigned agent's enabled engine is used, then the first configured engine.
   When an engine hits its usage limit the run is marked *paused* with its reset time;
   with `CREW_FAILOVER=claude|agy|codex` the work
@@ -101,10 +93,16 @@ flowchart LR
   work package title, summary, goal, tasks and acceptance criteria to TypeSafe.
 - **Themes**: Classic (default), Creature Tamer (with a battle-dialog decision band), Arcade Maze, Fantasy.
   Agent ids never change, so switching themes is one line.
-- **Two skills**: `crew-init` sets a project up; `crew-lead` is the lead's playbook (clarify → write WP →
-  run agent → review for real → feedback → ship → merge on green).
+- **Two skills**. `crew-init` sets up the project. `crew-lead` covers planning, running workers,
+  review, and shipping.
 
 ## Install
+
+Both clients use Git, GitHub CLI (`gh`), Python 3, and Bash. Optional workers and routing use the
+Antigravity CLI (`agy`) and TypeSafe's Jev (`TYPESAFE_API_KEY`).
+Configure Antigravity permissions in `~/.gemini/antigravity-cli/settings.json`.
+
+### Use with Claude Code
 
 ```text
 /plugin marketplace add badblli/agent-crew
@@ -114,12 +112,9 @@ flowchart LR
 Then, in a project: *"set up the crew in this project"* (runs `crew-init`). The board, agents and quota
 panes open on the next session start (Turkish projects also get `/ekip`, `/ajanlar`, `/kota`).
 
-Requirements: Claude Code with plugin hooks, git, GitHub CLI (`gh`), Python 3, bash.
-Codex workers also need the Codex CLI (logged in). crew-init defaults to both engines when its
-Codex check passes, otherwise Claude. Optional: the Antigravity CLI `agy` (signed in; set sandbox permissions in
-`~/.gemini/antigravity-cli/settings.json`), `TYPESAFE_API_KEY` for Jev.
+Use Claude Code with plugin hooks. To run Codex workers, install the Codex CLI and sign in.
 
-## Use with Codex
+### Use with Codex
 
 1. Run `codex plugin marketplace add badblli/agent-crew`, then open `/plugins` in Codex and
    install **Agent Crew**.
@@ -134,7 +129,7 @@ To update, run `codex plugin marketplace upgrade agent-crew` and start a new Cod
 If `/plugins` still shows the old version, uninstall and reinstall Agent Crew from the refreshed
 marketplace. The trusted hook refreshes the project's crew scripts and roles.
 
-## Updating
+## Updating Claude Code
 
 In a crew project the plugin checks GitHub once a day for a newer version and shows a toast when
 one is out: a single read of the published `plugin.json`, nothing sent. Turn it off with the
@@ -185,7 +180,7 @@ Regenerate native role definitions from one source with
 leaves them alone. Codex custom agent definitions do not launch themselves or override the
 parent sandbox/approval configuration. Repository Codex skills belong in `.agents/skills/`.
 
-Name the lead session once with `/rename <project> lead`. Full WPs use the runner; the lead's
+In Claude Code, name the lead session once with `/rename <project> lead`. Full WPs use the runner; the lead's
 Agent tool is reserved for tiny read-only helpers. Codex runs use `workspace-write`; Claude
 workers use `--permission-mode auto` by default and follow the same no-Git-write crew rules.
 Worker Claude rate-limit hints are stored in run/state files; chat gets at most one warning per
