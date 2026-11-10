@@ -2,6 +2,7 @@
   "project": "my-project",
   "lang": "en",
   "engines": ["claude", "codex"],
+  "notes": "none",
   "planDir": ".crew/plan",
   "stateDir": ".crew/state",
   "phasePrefix": "D"

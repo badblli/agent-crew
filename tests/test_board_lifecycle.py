@@ -60,11 +60,11 @@ def test_active_views_and_merge_history(board):
     assert plan.startswith(board.GENERATED)
     rows = [line for line in plan.splitlines() if line.startswith("| ")][2:]
     assert len(rows) == 2
-    assert rows[0] == "| first | Summary first | Builder | working | codex/standard | prerequisite |"
-    assert "| second |" in rows[1] and "agy/standard" in rows[1]
+    assert rows[0] == "| [`first`](wp/first.md) | Summary first | Builder | working | codex/standard | prerequisite |"
+    assert "| [`second`](wp/second.md) |" in rows[1] and "agy/standard" in rows[1]
     history = board.PLAN / "history.md"
     assert history.read_text(encoding="utf-8").startswith(board.GENERATED)
-    assert "`last` | Summary last | https://github.com/example/repo/pull/7" in entries(history)[0]
+    assert "[`last`](wp/last.md) | Summary last | https://github.com/example/repo/pull/7" in entries(history)[0]
     board.step("last", "merged")
     board.views()
     assert len(entries(history)) == 1
@@ -166,7 +166,7 @@ def test_archive_delivers_main_spec_to_worktree(board, monkeypatch, tmp_path, ex
     assert not (board.PLAN / "wp/done").exists()
     # The lead records merged before sync brings the committed archive back to main.
     board.step("wp1", "merged")
-    assert "`wp1` | Summary wp1 |" in entries(board.PLAN / "history.md")[0]
+    assert "[`wp1`](wp/wp1.md) | Summary wp1 |" in entries(board.PLAN / "history.md")[0]
 
 
 def test_worktree_tracked_spec_is_moved_in_worktree(board, monkeypatch, tmp_path):
@@ -219,8 +219,8 @@ def test_empty_board_backfills_archived_specs_newest_first(board):
         path.write_text(f"- Summary: Archived {wp}\n- PR: https://example.com/pull/1\n", encoding="utf-8")
     board.views()
     history = board.PLAN / "history.md"
-    assert entries(history) == ["- 2026-02-01 | `newer` | Archived newer | ",
-                                "- 2025-12-01 | `older` | Archived older | "]
+    assert entries(history) == ["- 2026-02-01 | [`newer`](wp/done/2026-02/newer.md) | Archived newer | ",
+                                "- 2025-12-01 | [`older`](wp/done/2025-12/older.md) | Archived older | "]
     before = history.read_bytes()
     board.views()
     assert history.read_bytes() == before
