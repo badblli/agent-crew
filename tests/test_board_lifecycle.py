@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -49,6 +50,26 @@ def add_wp(board, wp, step="working", engine="codex", **extra):
 
 def entries(path):
     return [line for line in path.read_text(encoding="utf-8").splitlines() if line.startswith("- ")]
+
+
+def test_parallel_steps_preserve_all_updates_and_plan_rows(board):
+    board._save({"items": {}, "phase": "planning", "focus": "parallel", "padding": "x" * 100_000})
+    work_packages = [f"wp-{n:02}" for n in range(12)]
+    script = board.ROOT / ".crew/bin/board.py"
+
+    def mark_working(wp):
+        return subprocess.run([sys.executable, str(script), "step", wp, "working"],
+                              capture_output=True, text=True, encoding="utf-8", timeout=20)
+
+    with ThreadPoolExecutor(max_workers=len(work_packages)) as pool:
+        for result in pool.map(mark_working, work_packages):
+            assert result.returncode == 0, result.stderr
+
+    state = board._load()
+    assert (state["phase"], state["focus"]) == ("planning", "parallel")
+    assert state["items"] == {wp: {"step": "working"} for wp in work_packages}
+    plan = (board.PLAN / "plan.md").read_text(encoding="utf-8")
+    assert all(f"[`{wp}`](wp/{wp}.md)" in plan for wp in work_packages)
 
 
 def test_active_views_and_merge_history(board):

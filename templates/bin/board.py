@@ -29,6 +29,7 @@ Usage:
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import re
@@ -36,6 +37,7 @@ import shutil
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote, unquote, urlsplit
@@ -108,16 +110,16 @@ def archive(wp: str, worktree: Path | None = None) -> None:
             raise SystemExit(f"missing WP spec: {wp}")
         main_tracked = is_tracked(ROOT, source) if source.is_file() else False
         meta = headers(wp)
+        # The main spec may be absent until sync after merge; keep its summary before moving it.
+        with _locked_board() as board:
+            if wp in board["items"]:
+                board["items"][wp]["summary"] = meta.get("Summary", meta.get("Özet", wp)).strip()
+                _save(board)
         dest.parent.mkdir(parents=True, exist_ok=True)
         if tracked:
             subprocess.run(["git", "-C", str(target), "mv", "--", str(active), str(dest)], check=True)
         else:
             dest.write_bytes(source.read_bytes())
-        # The main spec may be absent until sync after merge; keep its summary for that step.
-        board = _load()
-        if wp in board["items"]:
-            board["items"][wp]["summary"] = meta.get("Summary", meta.get("Özet", wp)).strip()
-            _save(board)
         if source.is_file() and source.parent == PLAN / "wp" and not main_tracked:
             source.unlink()
         return
@@ -245,7 +247,11 @@ def write_history(path: Path, entries: list[str]) -> None:
 
 
 def views() -> None:
-    board = _load()
+    with _locked_board() as board:
+        _write_views(board)
+
+
+def _write_views(board: dict) -> None:
     PLAN.mkdir(parents=True, exist_ok=True)
     lines = [GENERATED, "", "| WP | Summary | Agent | Step | Engine/tier | Depends on |",
              "| --- | --- | --- | --- | --- | --- |"]
@@ -300,18 +306,17 @@ def views() -> None:
 
 
 def lead(next_lead: str | None = None) -> str:
-    board = _load()
-    current = board.get("lead", {}).get("id", CONFIG["lead"])
-    if next_lead is not None:
-        if next_lead not in ("claude", "codex"):
-            raise SystemExit("usage: board.py lead [claude|codex]")
-        if next_lead == "codex" and "codex" not in CONFIG.get("engines", []):
-            raise SystemExit("Codex fallback requires codex in config.engines")
-        if next_lead != current or "lead" not in board:
+    if next_lead is None:
+        return _load().get("lead", {}).get("id", CONFIG["lead"])
+    if next_lead not in ("claude", "codex"):
+        raise SystemExit("usage: board.py lead [claude|codex]")
+    if next_lead == "codex" and "codex" not in CONFIG.get("engines", []):
+        raise SystemExit("Codex fallback requires codex in config.engines")
+    with _locked_board() as board:
+        if next_lead != board.get("lead", {}).get("id"):
             board["lead"] = {"id": next_lead, "since": datetime.now().astimezone().isoformat(timespec="seconds")}
             _save(board)
-        current = next_lead
-    return current
+    return next_lead
 
 
 def handoff(next_lead: str | None = None) -> str:
@@ -336,18 +341,61 @@ def handoff(next_lead: str | None = None) -> str:
     return text
 
 
-def _load() -> dict:
+def _load(*, strict: bool = False) -> dict:
     try:
         return json.loads(BOARD.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        pass
     except (OSError, ValueError):
-        return {"phase": "", "focus": "", "items": {}}
+        if strict:
+            raise
+    return {"phase": "", "focus": "", "items": {}}
+
+
+@contextmanager
+def _locked_board():
+    """Serialize board read-modify-write operations and their generated views."""
+    LEAD.mkdir(parents=True, exist_ok=True)
+    # Keep a separate file with a stable identity while board.json is replaced.
+    with BOARD.with_suffix(".lock").open("a+b") as lock:
+        if os.name == "nt":
+            import msvcrt
+
+            lock.seek(0)
+            deadline = time.monotonic() + 10
+            while True:
+                try:
+                    msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError as exc:
+                    if exc.errno != errno.EACCES or time.monotonic() >= deadline:
+                        raise
+                    time.sleep(0.02)
+            try:
+                yield _load(strict=True)
+            finally:
+                msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            yield _load(strict=True)
 
 
 def _save(board: dict) -> None:
     LEAD.mkdir(exist_ok=True)
     tmp = BOARD.with_suffix(".tmp")
     tmp.write_text(json.dumps(board, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(BOARD)
+    deadline = time.monotonic() + 2
+    while True:
+        try:
+            tmp.replace(BOARD)
+            return
+        except PermissionError:
+            # Windows readers can briefly block replacement of board.json.
+            if os.name != "nt" or time.monotonic() >= deadline:
+                raise
+            time.sleep(0.02)
 
 
 def say(wp: str, sender: str, text: str, kind: str = "message") -> None:
@@ -428,27 +476,28 @@ def status() -> str:
 def step(wp: str, step_id: str, note: str = "") -> None:
     if step_id not in STEPS and step_id != "failed":
         raise SystemExit(f"unknown step {step_id}; one of {STEPS + ['failed']}")
-    board = _load()
-    item = board["items"].setdefault(wp, {})
-    item["step"] = step_id
-    if step_id == "merged":
-        item.setdefault("merged_at", datetime.now().isoformat())
-    if note:
-        item["note"] = note
-        say(wp, "claude", note, "note")
-    _save(board)
-    views()
+    with _locked_board() as board:
+        item = board["items"].setdefault(wp, {})
+        item["step"] = step_id
+        if step_id == "merged":
+            item.setdefault("merged_at", datetime.now().isoformat())
+        if note:
+            item["note"] = note
+        _save(board)
+        if note:
+            say(wp, "claude", note, "note")
+        _write_views(board)
 
 
 def session(wp: str, command: str) -> None:
-    board = _load()
-    item = board["items"].setdefault(wp, {})
-    if item.get("session") == command:
-        return
-    item["session"] = command
-    item["note"] = "open: " + command
-    _save(board)
-    say(wp, "claude", "open: " + command, "note")
+    with _locked_board() as board:
+        item = board["items"].setdefault(wp, {})
+        if item.get("session") == command:
+            return
+        item["session"] = command
+        item["note"] = "open: " + command
+        _save(board)
+        say(wp, "claude", "open: " + command, "note")
 
 
 def ingest(wp: str, run: Path | None) -> None:
@@ -515,21 +564,21 @@ def main(argv: list[str]) -> None:
         raise SystemExit(__doc__)
     cmd, args = argv[1], argv[2:]
     if cmd == "phase":
-        board = _load()
-        board["phase"], board["focus"] = args[0], args[1] if len(args) > 1 else ""
-        _save(board)
+        with _locked_board() as board:
+            board["phase"], board["focus"] = args[0], args[1] if len(args) > 1 else ""
+            _save(board)
     elif cmd == "assign":
         wp, agent = args
         if agent not in AGENTS:
             raise SystemExit(f"unknown agent {agent}; one of {sorted(AGENTS)}")
-        board = _load()
-        board["items"].setdefault(wp, {})["agent"] = agent
-        _save(board)
         spec = spec_path(wp).read_text(encoding="utf-8")
         summary = next((ln.split(":", 1)[1].strip() for ln in spec.splitlines()
                         if ln.startswith(("- Summary:", "- Özet:"))), wp)
-        say(wp, "claude", ("Görev: " if CONFIG.get("lang") == "tr" else "Task: ") + summary, "assign")
-        step(wp, "assigned")
+        with _locked_board() as board:
+            board["items"].setdefault(wp, {}).update(agent=agent, step="assigned")
+            _save(board)
+            say(wp, "claude", ("Görev: " if CONFIG.get("lang") == "tr" else "Task: ") + summary, "assign")
+            _write_views(board)
     elif cmd == "step":
         step(args[0], args[1], args[2] if len(args) > 2 else "")
     elif cmd == "paths":
