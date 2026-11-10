@@ -147,13 +147,13 @@ resume_claude() {
 
 # Dispatch both initial runs and feedback through the same engine/model routing.
 run_worker() {
-  local engine="$1" wp="$2" run="$3" workdir="$4" prompt="$5" model effort tier
+  local engine="$1" wp="$2" run="$3" workdir="$4" prompt="$5" model effort
   printf '%s\n' "$engine" >"$run/engine"
   case "$engine" in
     claude) run_claude "$wp" "$run" "$workdir" "$prompt" ;;
     agy) run_agy "$wp" "$run" "$workdir" "$prompt" ;;
     codex)
-      read -r model effort tier < "$run/model"
+      read -r model effort _ < "$run/model"
       run_codex "$wp" "$run" "$workdir" -s workspace-write -m "$model" \
         -c "model_reasoning_effort=\"$effort\"" --json -o "$run/report.md" "$prompt" ;;
     *) echo "unknown engine: $engine" >&2; return 1 ;;
