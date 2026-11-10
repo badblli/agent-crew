@@ -1,0 +1,2 @@
+{"type":"system","subtype":"init","session_id":"synthetic-claude-session","model":"sonnet","cwd":"/synthetic/project"}
+{"type":"result","subtype":"error_during_execution","is_error":true,"session_id":"synthetic-claude-session","errors":["Synthetic provider overloaded"],"usage":{"input_tokens":0,"output_tokens":0},"total_cost_usd":0}
