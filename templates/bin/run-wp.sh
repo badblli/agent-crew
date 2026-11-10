@@ -79,7 +79,7 @@ echo running >"$run/status"
 board step "$wp" working
 
 prompt="You are ${agent:-a member} of the project crew, working on work package $wp.
-Claude Code is the tech lead and reviews your work. Read AGENTS.md and only the references your WP needs, then do
+The crew lead reviews your work. Read AGENTS.md and only the references your WP needs, then do
 the work package below. Work only inside $workdir. Do not commit; the lead commits after review.
 Write short progress messages at each milestone, in the language AGENTS.md names. Finish with the report format from
 AGENTS.md.
