@@ -1,0 +1,17 @@
+{
+  "name": "agent-crew",
+  "version": "0.5.5",
+  "description": "Lead a named crew of coding agents with work packages, isolated worktrees, reviews, and a shared board.",
+  "author": { "name": "badblli" },
+  "homepage": "https://github.com/badblli/agent-crew",
+  "repository": "https://github.com/badblli/agent-crew",
+  "license": "MIT",
+  "skills": "./skills/",
+  "hooks": "./.codex-plugin/hooks.json",
+  "interface": {
+    "displayName": "Agent Crew",
+    "shortDescription": "Lead a crew of coding agents from planning through review",
+    "developerName": "badblli",
+    "category": "Developer Tools"
+  }
+}

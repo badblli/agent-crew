@@ -33,11 +33,26 @@ The rules in this preamble take precedence over the Claude-only instructions bel
 """
 
 
-def render_lead() -> bytes:
+FULL_LEAD_PREAMBLE = """# Crew lead (Codex)
+
+You are the configured tech lead. Read `.crew/config.json` and the configured `<planDir>/handoff.md`
+if it exists. Check `python .crew/bin/board.py lead` for a stored handoff before acting as lead.
+Follow the shared lead loop below. Ask questions in chat as numbered options and record decisions
+in the WP. Use `python .crew/bin/board.py status` to show the board in chat.
+
+Use Codex workers or explicitly configured agy workers. Use Claude workers only if
+`claude` is in `config.engines`. Never push directly to the default branch. After CI is
+green, merge only after the user explicitly says "merge" in chat for that specific PR.
+
+"""
+
+
+def render_lead(lead: str) -> bytes:
     text = (PLUGIN / "skills/crew-lead/SKILL.md").read_text(encoding="utf-8")
     header, body = text[4:].split("\n---\n", 1)
     # Keep the source frontmatter, which provides Codex's required name and description.
-    return ("---\n" + header + "\n---\n\n" + FALLBACK_PREAMBLE + body.lstrip()).encode("utf-8")
+    preamble = FULL_LEAD_PREAMBLE if lead == "codex" else FALLBACK_PREAMBLE
+    return ("---\n" + header + "\n---\n\n" + preamble + body.lstrip()).encode("utf-8")
 
 
 def digest(data: bytes) -> str:
@@ -99,7 +114,7 @@ def sync(project: Path, engines: list[str] | None = None) -> dict:
             rel = f".{engine}/agents/crew-{meta['name']}.{suffix}"
             prepared.append((rel, render(meta, body, engine, routing)))
     if "codex" in config.get("engines", []):
-        prepared.append((".agents/skills/crew-lead/SKILL.md", render_lead()))
+        prepared.append((".agents/skills/crew-lead/SKILL.md", render_lead(config.get("lead", "claude"))))
     result = {"added": [], "updated": [], "kept": []}
     for rel, data in prepared:
         dest = project / rel
