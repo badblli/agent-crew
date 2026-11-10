@@ -1,6 +1,7 @@
 {
   "project": "my-project",
   "lang": "en",
+  "engines": ["claude", "codex"],
   "planDir": ".crew/plan",
   "stateDir": ".crew/state",
   "phasePrefix": "D"

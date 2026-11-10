@@ -16,6 +16,7 @@ user. You receive one **work package (WP)** at a time. Do that WP and nothing el
 
 ## Hard rules
 
+- Do not read `{{planDir}}/plan.md`, `history.md`, `handoff.md`, `notes/` or `wp/done/` unless your WP links them.
 - Work only in your worktree and on your branch. **Do not commit, push, merge, rebase or open
   PRs** — the lead reviews your working-tree diff and commits it.
 - You have a name and a role in `{{planDir}}/team.json`. Write short progress messages in
@@ -28,13 +29,15 @@ user. You receive one **work package (WP)** at a time. Do that WP and nothing el
 - Keep the diff to the WP. No drive-by refactors, renames or dependency upgrades — ask in your report.
 - Do not claim a test passed unless you ran it. Acceptance criteria in the WP are the definition of done.
 
-## Commands
+## Where to look
 
-Always use these exact commands (same tool versions as CI); the lead re-runs them:
+| Need | Read |
+| --- | --- |
+| Verified commands, stack, architecture and module boundaries | `rule.md` |
+| Feature → code map and tests | `feature.md` |
+| Past decisions | `docs/adr/` (only relevant records) |
 
-```sh
-{{testCommands}}
-```
+Use the verified commands in `rule.md` with the same tool versions as CI; the lead re-runs them.
 
 ## Final report (your last message, exactly these headings)
 

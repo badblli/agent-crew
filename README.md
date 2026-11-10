@@ -4,7 +4,7 @@
 
 **Make Claude Code the tech lead of a named crew of coding agents — and watch them work.**
 
-Claude Code plans the work, splits it into work packages, hands each one to a coding agent (Codex or Gemini via the Antigravity CLI) in its
+Claude Code plans the work, splits it into work packages, hands each one to a Claude Code or Codex worker (optionally Gemini via the Antigravity CLI) in its
 own git worktree, reviews the diff, re-runs the tests itself, commits, opens the PR and merges when
 CI is green. You stay the product owner: critical decisions come to you in a decision band; everything
 else shows up live on a crew board inside Claude Code.
@@ -27,9 +27,19 @@ else shows up live on a crew board inside Claude Code.
 - **Decision band** above the prompt when the lead needs you; pick an option with a key.
 - **Model routing**: each work package declares a tier (light / standard / deep / peak); review rounds
   resume the same agent thread on the same model so the cached prompt is reused.
-- **Two engines**: `- Engine: codex|agy` per work package (or `CREW_ENGINE`). When an engine hits its
-  usage limit the run is marked *paused* with its reset time; with `CREW_FAILOVER=agy|codex` the work
+- **Engine choice**: crew-init asks for Claude workers, Codex workers or both and saves `engines`
+  in `.crew/config.json`. Set `- Engine: claude|codex|agy` per work package (or `CREW_ENGINE`).
+  Without either, the assigned agent's enabled engine is used, then the first configured engine.
+  When an engine hits its usage limit the run is marked *paused* with its reset time;
+  with `CREW_FAILOVER=claude|agy|codex` the work
   continues on the other engine in the same worktree.
+- **Visible Claude workers**: each session is named `<agent> · <wp>`. Agent chat includes
+  `open: claude --resume <session_id>`; tell.sh resumes that session for review feedback.
+  `CREW_CLAUDE_BG=1` instead launches a session listed by `claude agents`, watched with
+  `claude attach "<agent> · <wp>"`. Background mode tracks launch only; the lead records stop
+  after checking the session, with no streamed report/chat. Use attach for its feedback.
+  `CREW_CLAUDE_PERMISSION_MODE` overrides the worker permission mode (default `auto`), including
+  resumed and background sessions. `acceptEdits` alone does not allow headless Bash test commands.
 - **Second opinion (optional)**: `jev_route.py` asks TypeSafe's Jev for engine, tier, risk and whether
   the user must decide — one request per work package, only when explicitly enabled. It sends the
   work package title, summary, goal, tasks and acceptance criteria to TypeSafe.
@@ -43,7 +53,7 @@ else shows up live on a crew board inside Claude Code.
 ```text
 you ──► Claude Code (lead) ──► work package (.crew/plan/wp/*.md)
                 │                    │
-                │        .crew/bin/run-wp.sh ──► Codex agent in ../<repo>-wt/<wp> (sandboxed, no git writes)
+                │        .crew/bin/run-wp.sh ──► Claude/Codex worker in ../<repo>-wt/<wp> (no git writes)
                 │                    │                     │ events, messages, report
                 ▼                    ▼                     ▼
           review + re-test ◄── .crew/state (board, chat, runs) ──► crew board / agent panes
@@ -61,8 +71,9 @@ you ──► Claude Code (lead) ──► work package (.crew/plan/wp/*.md)
 Then, in a project: *"set up the crew in this project"* (runs `crew-init`). The board, agents and quota
 panes open on the next session start (Turkish projects also get `/ekip`, `/ajanlar`, `/kota`).
 
-Requirements: Claude Code with plugin hooks, the Codex CLI (logged in), git, GitHub CLI (`gh`),
-Python 3, bash. Optional: the Antigravity CLI `agy` (signed in; set sandbox permissions in
+Requirements: Claude Code with plugin hooks, git, GitHub CLI (`gh`), Python 3, bash.
+Codex workers also need the Codex CLI (logged in). crew-init defaults to both engines when its
+Codex check passes, otherwise Claude. Optional: the Antigravity CLI `agy` (signed in; set sandbox permissions in
 `~/.gemini/antigravity-cli/settings.json`), `TYPESAFE_API_KEY` for Jev.
 
 ## Updating
@@ -87,12 +98,38 @@ accept that access. The lead can run dependency-based checks in the main checkou
 ## Project layout it creates
 
 ```text
-.crew/config.json        project, lang (en|tr), planDir, stateDir
+.crew/config.json        project, lang (en|tr), engines, planDir, stateDir
 .crew/plan/              team.json (roster, steps, phases, themes), models.json, wp/*.md
 .crew/bin/               board.py, run-wp.sh, tell.sh, lib.sh, sync.sh, usage.py, jev_route.py
 .crew/state/             board, conversations, runs (git-ignored)
-AGENTS.md                rules every agent reads
+AGENTS.md                shared hard rules and report format (at most 8 KB)
+CLAUDE.md                imports @AGENTS.md on line 1; Claude-only lead note
+rule.md                  stack, verified commands, architecture, contracts, proven lessons
+feature.md               one feature → entry files → tests table
+docs/adr/                decisions, consulted when relevant
+.claude/agents/          crew roles for Claude (if selected)
+.codex/agents/           crew roles for Codex (if selected)
+.crew/roles-rendered.json hashes used to preserve locally edited roles
 ```
+
+The always-loaded instruction core stays short. Plan/history/handoff, notes and completed-WP
+archives are read only when the assigned WP links them. Unknown project details stay `unknown`.
+Templates ship in English; crew-init translates headings for Turkish projects while preserving
+paths, config keys and the shared final-report format.
+
+Regenerate native role definitions from one source with
+`python <plugin root>/tools/render_roles.py --project . --engines claude,codex`
+(or just `claude` / `codex`). It reads the project's model tiers, reports locally edited files and
+leaves them alone. Codex custom agent definitions do not launch themselves or override the
+parent sandbox/approval configuration. Repository Codex skills belong in `.agents/skills/`.
+
+Name the lead session once with `/rename <project> lead`. Full WPs use the runner; the lead's
+Agent tool is reserved for tiny read-only helpers. Codex runs use `workspace-write`; Claude
+workers use `--permission-mode auto` by default and follow the same no-Git-write crew rules.
+Worker Claude rate-limit hints are stored in run/state files; chat gets at most one warning per
+run when a limit is hit or status is not `allowed`. The quota pane's Claude
+account windows come from the lead session. The board's session command is available in agent
+chat; dedicated board session/worker-quota widgets require hook support.
 
 The installed crew creates project-specific WPs and local run logs in the destination project.
 Review WPs before committing them; keep `.crew/state/` and `.env*` out of Git. Test fixtures in
