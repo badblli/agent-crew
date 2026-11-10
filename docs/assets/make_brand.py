@@ -1,4 +1,8 @@
-"""Generate agent-crew brand SVGs: mascot (Reis), README banners, social preview."""
+"""Generate agent-crew brand SVGs: mascot (Reis), README banners, social preview.
+
+Usage: python docs/assets/make_brand.py docs/assets
+(social-preview.png is a 1280x640 browser screenshot of social-preview.svg.)
+"""
 import sys
 from pathlib import Path
 
