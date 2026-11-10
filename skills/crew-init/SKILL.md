@@ -64,6 +64,7 @@ The plugin's files are in this plugin's root (the directory that contains `.clau
      do not launch workers automatically; use run-wp.sh for WP sessions. Codex agent files do not
      override parent sandbox/approval settings.
 4. **Git hygiene:** add `<stateDir>/`, `.env`, and `.env.*` (except `.env.example`) to `.gitignore`;
+   also add `<planDir>/plan.md`, `<planDir>/history.md`, and `<planDir>/history/` (local generated views).
    check `git ls-files` for any already tracked private files, since ignore rules do not untrack them.
    Add `*.sh text eol=lf` to `.gitattributes`.
    Commit on a branch and open a PR (`chore(crew): set up agent crew`) — never push to a protected

@@ -2,6 +2,7 @@
 
 - Summary: <one sentence the product owner understands, in the crew language>
 - Model: light | standard | deep | peak (models.json; peak needs a reason)
+- Engine: codex | claude | agy (choose one enabled engine)
 - Phase: D<n>
 - Branch: `codex/<wp-id>` (base: `origin/<main branch>` unless stated)
 - Depends on: <wp-ids or none>
@@ -22,7 +23,8 @@
 
 ## Acceptance criteria
 
-- [ ] <measurable, checked by the lead>
+- [ ] AC-01: <measurable, checked by the lead; reports answer per id>
+- [ ] AC-02: <next measurable criterion>
 
 ## Notes
 

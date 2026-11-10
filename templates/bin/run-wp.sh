@@ -83,6 +83,7 @@ Claude Code is the tech lead and reviews your work. Read AGENTS.md and only the 
 the work package below. Work only inside $workdir. Do not commit; the lead commits after review.
 Write short progress messages at each milestone, in the language AGENTS.md names. Finish with the report format from
 AGENTS.md.
+Do not read plan.md, history.md, handoff.md, notes/ or wp/done/ unless your WP links them.
 
 ----- WORK PACKAGE -----
 $(cat "$spec")"
