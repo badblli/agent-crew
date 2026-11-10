@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/.codex-plugin/session_start.py\"",
+            "commandWindows": "python \"$env:PLUGIN_ROOT/.codex-plugin/session_start.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

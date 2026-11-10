@@ -119,6 +119,21 @@ Codex workers also need the Codex CLI (logged in). crew-init defaults to both en
 Codex check passes, otherwise Claude. Optional: the Antigravity CLI `agy` (signed in; set sandbox permissions in
 `~/.gemini/antigravity-cli/settings.json`), `TYPESAFE_API_KEY` for Jev.
 
+## Use with Codex
+
+1. Run `codex plugin marketplace add badblli/agent-crew`, then open `/plugins` in Codex and
+   install **Agent Crew**.
+2. Start a new session and review and trust the Agent Crew SessionStart hook in `/hooks`.
+3. Ask Codex to run `crew-init`. Choose Codex as lead (`"lead": "codex"` in `.crew/config.json`)
+   and select your worker engines. Codex-only crews need the Codex CLI, Git, `gh`, Python 3 and Bash.
+
+Codex has no crew panes, decision band or update toasts. Use `python .crew/bin/board.py status`
+for the board, and answer decision and PR merge requests in chat.
+
+To update, run `codex plugin marketplace upgrade agent-crew` and start a new Codex session.
+If `/plugins` still shows the old version, uninstall and reinstall Agent Crew from the refreshed
+marketplace. The trusted hook refreshes the project's crew scripts and roles.
+
 ## Updating
 
 In a crew project the plugin checks GitHub once a day for a newer version and shows a toast when
@@ -141,7 +156,7 @@ accept that access. The lead can run dependency-based checks in the main checkou
 ## Project layout it creates
 
 ```text
-.crew/config.json        project, lang (en|tr), engines, planDir, stateDir
+.crew/config.json        project, lang (en|tr), engines, lead, planDir, stateDir
 .crew/plan/              team.json (roster, steps, phases, themes), models.json, wp/*.md
 .crew/plan/wp/done/      shipped WPs, archived by month in the PR that ships them
 .crew/plan/plan.md       active work, generated (git-ignored); history.md and history/ likewise

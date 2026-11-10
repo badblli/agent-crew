@@ -1,0 +1,12 @@
+{
+  "name": "agent-crew",
+  "interface": { "displayName": "Agent Crew" },
+  "plugins": [
+    {
+      "name": "agent-crew",
+      "source": { "source": "local", "path": "./" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Developer Tools"
+    }
+  ]
+}

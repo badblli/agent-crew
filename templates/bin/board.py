@@ -14,6 +14,7 @@ Usage:
   board.py paths                              print "<planDir> <stateDir>" (absolute)
   board.py model <wp>                         print "<model> <effort> <tier>" from the WP's "- Model:" line
   board.py lead [claude|codex]                print or set the current lead
+  board.py status                            print a compact board for chat
   board.py ingest <wp> [run-dir]              read engine JSON events, log messages and session metadata
   board.py session <wp> "<open command>"      publish a worker's interactive session command
   board.py report <wp> <report.md>            log the agent's final report summary
@@ -41,7 +42,7 @@ from urllib.parse import quote, unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 try:
-    CONFIG = {"planDir": ".crew/plan", "stateDir": ".crew/state",
+    CONFIG = {"planDir": ".crew/plan", "stateDir": ".crew/state", "lead": "claude",
               **json.loads((ROOT / ".crew/config.json").read_text(encoding="utf-8"))}
     for key in ("planDir", "stateDir"):
         if not isinstance(CONFIG[key], str) or not CONFIG[key].strip():
@@ -300,7 +301,7 @@ def views() -> None:
 
 def lead(next_lead: str | None = None) -> str:
     board = _load()
-    current = board.get("lead", {}).get("id", "claude")
+    current = board.get("lead", {}).get("id", CONFIG["lead"])
     if next_lead is not None:
         if next_lead not in ("claude", "codex"):
             raise SystemExit("usage: board.py lead [claude|codex]")
@@ -318,7 +319,7 @@ def handoff(next_lead: str | None = None) -> str:
     board = _load()
     lines = ["# Handoff", "", "Phase: " + cell(board.get("phase", "")),
              "Focus: " + cell(board.get("focus", "")), "", "## Lead", current]
-    if current == "codex":
+    if current == "codex" and CONFIG["lead"] == "claude":
         lines.append('codex "Use the crew-lead skill as fallback lead: read .crew/plan/handoff.md and continue."')
         if CONFIG["planDir"] != ".crew/plan":
             lines.append("Configured handoff: " + cell(CONFIG["planDir"]) + "/handoff.md (read this card).")
@@ -328,10 +329,7 @@ def handoff(next_lead: str | None = None) -> str:
     lines.extend(f"- {cell(wp)}: {cell(item.get('step', ''))}" for wp, item in opened[:20])
     if len(opened) > 20:
         lines.append(f"- … {len(opened) - 20} more open WPs (board.py views)")
-    decision_path = LEAD / "decision.json"
-    decision = json.loads(decision_path.read_text(encoding="utf-8")) if decision_path.exists() else {}
-    question = decision.get("question", "none") if decision.get("status") == "open" else "none"
-    lines.extend(["", "## Open decision", cell(question), "", "## Next", "- <lead: next action>"])
+    lines.extend(["", "## Open decision", open_question(), "", "## Next", "- <lead: next action>"])
     PLAN.mkdir(parents=True, exist_ok=True)
     text = "\n".join(lines) + "\n"
     (PLAN / "handoff.md").write_text(text, encoding="utf-8")
@@ -373,6 +371,58 @@ def display_name(agent_id: str) -> str:
 
 def agent_of(wp: str) -> str:
     return _load()["items"].get(wp, {}).get("agent", "")
+
+
+def open_question() -> str:
+    path = LEAD / "decision.json"
+    decision = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    return cell(decision.get("question", "none")) if decision.get("status") == "open" else "none"
+
+
+def worker_route(spec: str, agent: str, default_tier: str, current_lead: str) -> tuple[str, str, str]:
+    def field(name: str, default: str) -> str:
+        match = re.search(rf"^- {name}:[ \t]*(\S+)", spec, re.MULTILINE)
+        return match[1].lower() if match else default
+
+    enabled = CONFIG.get("engines", ["codex"])
+    roster_engine = next((a.get("engine") for a in TEAM["agents"] if a["id"] == agent), None)
+    default_engine = roster_engine if roster_engine in enabled else enabled[0]
+    forced = os.environ.get("CREW_ENGINE_FORCE", "").lower()
+    engine = forced or field("Engine", os.environ.get("CREW_ENGINE", "").lower() or default_engine)
+    notice = ""
+    if engine == "claude" and current_lead == "codex":
+        if CONFIG["lead"] == "claude" and not forced:
+            engine = "codex"
+            notice = "Codex fallback lead: routing Claude work to Codex (shared Claude quota)."
+        elif CONFIG["lead"] == "codex" and "claude" not in enabled:
+            engine = "codex"
+            notice = "Codex lead: Claude workers require claude in config.engines."
+    return engine, field("Model", default_tier), notice
+
+
+def status() -> str:
+    board = _load()
+    current = board.get("lead", {}).get("id", CONFIG["lead"])
+    lines = [f"Phase: {cell(board.get('phase') or '—')} | Focus: {cell(board.get('focus') or '—')}",
+             f"Lead: {current}", f"Open decision: {open_question()}", "Open WPs:"]
+    opened = [(wp, item) for wp, item in board["items"].items() if item.get("step") != "merged"]
+    limit = 30 - len(lines)
+    visible = opened[:limit - 1] if len(opened) > limit else opened
+    if visible:
+        models = PLAN / "models.json"
+        tier_default = json.loads(models.read_text(encoding="utf-8"))["default"] if models.exists() else "—"
+        for wp, item in visible:
+            path = spec_path(wp)
+            spec = path.read_text(encoding="utf-8") if path.is_file() else ""
+            agent = item.get("agent") or ""
+            engine, tier, _ = worker_route(spec, agent, tier_default, current)
+            lines.append(f"- {cell(wp)} | {cell(display_name(agent) or 'unassigned')} | "
+                         f"{cell(item.get('step') or '—')} | {cell(engine)}/{cell(tier)}")
+    else:
+        lines.append("- none")
+    if len(opened) > len(visible):
+        lines.append(f"- … {len(opened) - len(visible)} more open WPs")
+    return "\n".join(lines)
 
 
 def step(wp: str, step_id: str, note: str = "") -> None:
@@ -508,25 +558,17 @@ def main(argv: list[str]) -> None:
         if len(args) > 1:
             raise SystemExit("usage: board.py lead [claude|codex]")
         print(lead(args[0] if args else None))
+    elif cmd == "status":
+        print(status())
     elif cmd == "model":
         routing = json.loads((PLAN / "models.json").read_text(encoding="utf-8"))
         spec = spec_path(args[0]).read_text(encoding="utf-8")
-        tier = next((ln.split(":", 1)[1].strip().split()[0].lower() for ln in spec.splitlines()
-                     if ln.startswith("- Model:")), routing["default"])
-        engine = next((ln.split(":", 1)[1].strip().split()[0].lower() for ln in spec.splitlines()
-                       if ln.startswith("- Engine:")), None)
-        
-        # Explicit WP/env choices win; otherwise use the roster's enabled engine, then config.
-        import os
-        enabled = CONFIG.get("engines", ["codex"])
-        roster_engine = next((a.get("engine") for a in TEAM["agents"] if a["id"] == agent_of(args[0])), None)
-        default_engine = roster_engine if roster_engine in enabled else enabled[0]
-        engine = (os.environ.get("CREW_ENGINE_FORCE", "").lower() or engine
-                  or os.environ.get("CREW_ENGINE", "").lower() or default_engine)
-        if engine == "claude" and lead() == "codex" and not os.environ.get("CREW_ENGINE_FORCE"):
-            engine = "codex"
-            print("Codex fallback lead: routing Claude work to Codex (shared Claude quota).", file=sys.stderr)
-            
+        engine, tier, notice = worker_route(spec, agent_of(args[0]), routing["default"], lead())
+        if notice:
+            if os.environ.get("CREW_ENGINE_FORCE"):
+                raise SystemExit(notice)
+            print(notice, file=sys.stderr)
+
         tiers_key = f"{engine}_tiers" if engine != "codex" else "tiers"
         if tiers_key not in routing or tier not in routing[tiers_key]:
             raise SystemExit(f"unknown engine/tier {engine}/{tier}; check models.json")

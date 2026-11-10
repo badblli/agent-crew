@@ -119,6 +119,22 @@ Codex ajanları için ayrıca Codex CLI (giriş yapılmış). crew-init, Codex k
 olarak iki motoru, geçmezse Claude'u seçer. İsteğe bağlı: Antigravity CLI `agy` (giriş yapılmış; sandbox
 izinlerini `~/.gemini/antigravity-cli/settings.json` içinde ayarla), Jev için `TYPESAFE_API_KEY`.
 
+## Codex ile kullanım
+
+1. `codex plugin marketplace add badblli/agent-crew` komutunu çalıştır, ardından Codex'te
+   `/plugins` menüsünden **Agent Crew** eklentisini kur.
+2. Yeni bir oturum aç ve `/hooks` menüsünde Agent Crew SessionStart hook'unu inceleyip onayla.
+3. Codex'ten `crew-init` çalıştırmasını iste. Lider olarak Codex'i seç
+   (`.crew/config.json` içinde `"lead": "codex"`) ve ajan motorlarını belirle. Yalnızca Codex
+   kullanan ekipler için Codex CLI, Git, `gh`, Python 3 ve Bash gerekir.
+
+Codex'te ekip panelleri, karar bandı ve güncelleme bildirimleri yoktur. Panoyu görmek için
+`python .crew/bin/board.py status` komutunu kullan. Karar ve PR birleştirme isteklerini sohbette yanıtla.
+
+Güncellemek için `codex plugin marketplace upgrade agent-crew` komutunu çalıştır ve yeni bir Codex
+oturumu aç. `/plugins` hâlâ eski sürümü gösteriyorsa Agent Crew eklentisini kaldırıp güncel
+marketplace'ten yeniden kur. Onaylanan hook, projenin ekip script'lerini ve rollerini günceller.
+
 ## Güncelleme
 
 Bir ekip projesinde eklenti günde bir kez GitHub'da yeni sürüm olup olmadığına bakar ve varsa bildirim
@@ -143,7 +159,7 @@ checkout'ta çalıştırabilir.
 ## Oluşturduğu proje düzeni
 
 ```text
-.crew/config.json        proje, lang (en|tr), engines, planDir, stateDir
+.crew/config.json        proje, lang (en|tr), engines, lead, planDir, stateDir
 .crew/plan/              team.json (kadro, adımlar, fazlar, temalar), models.json, wp/*.md
 .crew/plan/wp/done/      teslim edilen WP'ler, teslim eden PR'da aya göre arşivlenir
 .crew/plan/plan.md       aktif iş, üretilir (git-ignore); history.md ve history/ da öyle

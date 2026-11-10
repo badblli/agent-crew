@@ -2,6 +2,7 @@
   "project": "my-project",
   "lang": "en",
   "engines": ["claude", "codex"],
+  "lead": "claude",
   "notes": "none",
   "planDir": ".crew/plan",
   "stateDir": ".crew/state",

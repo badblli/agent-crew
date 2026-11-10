@@ -1,16 +1,15 @@
 ---
 name: crew-init
-description: Set up an agent crew in the current project (Claude Code as tech lead, Claude or Codex workers or both, live crew board). Use when the user asks to set up / initialize / add the crew, the team, the agents or a themed team in a project, or when the crew board says no crew is configured.
+description: Set up an agent crew in the current project with Claude Code or Codex as tech lead and Claude or Codex workers. Use when the user asks to set up / initialize / add the crew, the team, the agents or a themed team in a project, or when the crew board says no crew is configured.
 ---
 
 # Set up an agent crew in this project
 
 Goal: after this, the user can say "give X to the crew" and you (the lead) write work packages,
 run named Claude or Codex worker sessions in their own git worktrees, review, commit and track everything on the live
-crew board (`/crew`). Follow the `crew-lead` skill for the day-to-day loop.
+crew board. Follow the `crew-lead` skill for the day-to-day loop.
 
-The plugin's files are in this plugin's root (the directory that contains `.claude-plugin/` and
-`templates/`). Find it from this skill's own path: `<plugin root>/skills/crew-init/SKILL.md`.
+Find the plugin root from this skill's own path, `<plugin root>/skills/crew-init/SKILL.md`.
 
 ## Steps
 
@@ -20,15 +19,19 @@ The plugin's files are in this plugin's root (the directory that contains `.clau
    `%LOCALAPPDATA%/OpenAI/Codex/bin/*/codex.exe` on Windows, else `codex` on PATH; run
    `codex exec -s read-only "Reply OK"` once to confirm the account model works. A missing CLI or
    failed check permits a Claude-only setup; do not block initialization on Codex. Check Claude
-   availability with `claude --version`. Verify that `plan/models.json` names models available to
+   availability with `claude --version`; a working Codex CLI alone supports a Codex-only setup.
+   Verify that `plan/models.json` names models available to
    the selected accounts; adapt unavailable model IDs before starting an agent.
-2. **Ask in one AskUserQuestion:** worker engines (Claude / Codex / both), crew language (en/tr),
+2. **Ask in one question** (Claude Code uses `AskUserQuestion`; Codex uses numbered options in chat).
+   Ask for worker engines (Claude / Codex / both), lead (Claude / Codex when Codex is enabled), crew language (en/tr),
    theme (classic default, tamer, arcade, fantasy), notes (none / Obsidian vault / Notion),
-   and categories of private information that must never be committed. Default engines to both if the Codex CLI check passed, otherwise Claude.
+   and categories of private information that must never be committed. Default to both engines when
+   both CLIs work, otherwise use the available engine. Default the lead to Claude if available,
+   or Codex for a Codex-only setup.
    Infer known answers, but include engine choice in this single question. Do not ask the user to
    paste secrets or private examples.
 3. **Copy templates** from `<plugin root>/templates/` into the project:
-   - `config.json` → `.crew/config.json` (set `project`, `lang`, `engines` and
+   - `config.json` → `.crew/config.json` (set `project`, `lang`, `engines`, `lead` and
      `notes: none|obsidian|notion`; keep `planDir: .crew/plan`, `stateDir: .crew/state` unless the project already has a plan dir).
    - `plan/` → `<planDir>/` (`team.json`, `models.json`, `wp/TEMPLATE.md` only; do not copy the optional
      `index.md`, `notes/` or `.obsidian/` for none/Notion). Set `team.json.theme`.
@@ -59,8 +62,9 @@ The plugin's files are in this plugin's root (the directory that contains `.clau
      Claude-only writes `.claude/agents/crew-*.md`; Codex-only writes `.codex/agents/crew-*.toml`;
      both writes both sets. The renderer uses the project's models.json and records hashes in
      `.crew/roles-rendered.json`; keep that manifest so future renders preserve edited files.
-     With Codex enabled it also renders `.agents/skills/crew-lead/SKILL.md` with the fallback
-     lead rules and the same edit protection. Session-start sync re-runs this renderer; keep
+     With Codex enabled it also renders `.agents/skills/crew-lead/SKILL.md` with full lead rules
+     for `lead: codex` or fallback rules for `lead: claude`, with the same edit protection.
+     Session-start sync re-runs this renderer; keep
      any locally edited skill it reports and review the upstream changes manually.
      Review any files reported as locally changed rather than overwriting them. For Turkish,
      translate role prose deliberately after rendering; later renders will preserve those edits.
@@ -87,9 +91,9 @@ The plugin's files are in this plugin's root (the directory that contains `.clau
    Run `python .crew/bin/board.py views` and `python .crew/bin/board.py handoff`, then
    `python .crew/bin/board.py doctor`. plan.md/history.md/history/ are generated locally and
    may be absent in a fresh clone; handoff.md is kept in Git.
-   Tell the user to type `/crew` to see the board (the plugin opens it automatically on the next
-   session start).
-6. **Explain sessions:** ask the user once to run `/rename <project> lead`; the model cannot invoke
-   that built-in slash command itself. Each Claude worker gets `<agent display name> · <wp>` and
+   In Claude Code, use `/crew` or start a new session to open the panes. In Codex, show
+   `python .crew/bin/board.py status` in chat.
+6. **Explain sessions:** in Claude Code, ask the user once to run `/rename <project> lead`. In Codex,
+   skip the naming step. Each Claude worker gets `<agent display name> · <wp>` and
    can be reopened with `claude --resume <session_id>` from `<run>/thread`. See crew-lead for
    optional `CREW_CLAUDE_BG=1` sessions and `claude attach <name>`.
