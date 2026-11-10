@@ -23,14 +23,15 @@ The plugin's files are in this plugin's root (the directory that contains `.clau
    availability with `claude --version`. Verify that `plan/models.json` names models available to
    the selected accounts; adapt unavailable model IDs before starting an agent.
 2. **Ask in one AskUserQuestion:** worker engines (Claude / Codex / both), crew language (en/tr),
-   theme (classic default, tamer, arcade, fantasy), and categories of private information that
-   must never be committed. Default engines to both if the Codex CLI check passed, otherwise Claude.
+   theme (classic default, tamer, arcade, fantasy), notes (none / Obsidian vault / Notion),
+   and categories of private information that must never be committed. Default engines to both if the Codex CLI check passed, otherwise Claude.
    Infer known answers, but include engine choice in this single question. Do not ask the user to
    paste secrets or private examples.
 3. **Copy templates** from `<plugin root>/templates/` into the project:
-   - `config.json` → `.crew/config.json` (set `project`, `lang`, `engines`; keep `planDir: .crew/plan`,
-     `stateDir: .crew/state` unless the project already has a plan dir).
-   - `plan/` → `<planDir>/` (`team.json`, `models.json`, `wp/TEMPLATE.md`). Set `team.json.theme`.
+   - `config.json` → `.crew/config.json` (set `project`, `lang`, `engines` and
+     `notes: none|obsidian|notion`; keep `planDir: .crew/plan`, `stateDir: .crew/state` unless the project already has a plan dir).
+   - `plan/` → `<planDir>/` (`team.json`, `models.json`, `wp/TEMPLATE.md` only; do not copy the optional
+     `index.md`, `notes/` or `.obsidian/` for none/Notion). Set `team.json.theme`.
      If `lang` is `tr`, translate step labels, roles and phase labels. Set each roster member's
      `engine` to an enabled engine: all Claude in a Claude-only setup, all Codex in a Codex-only
      setup, or choose per role for both. Keep role labels independent of the engine.
@@ -63,13 +64,26 @@ The plugin's files are in this plugin's root (the directory that contains `.clau
      Codex repository skills belong in `.agents/skills/<name>/SKILL.md`. Custom agent definitions
      do not launch workers automatically; use run-wp.sh for WP sessions. Codex agent files do not
      override parent sandbox/approval settings.
+   - With `notes: obsidian`, run
+     `python .crew/bin/board.py init-notes "<plugin root>/templates/plan"` after copying core templates.
+     This creates `<planDir>/index.md`, `notes/README.md` and `.obsidian/app.json` (only
+     `"userIgnoreFilters": []`), preserves existing files, adds the workspace ignore rule,
+     and prints `obsidian://open?path=<absolute planDir>` (URL encoded). Show that link to the user.
+     Open `<planDir>` as the vault, not the repository root, so code folders are not indexed.
+     The lead keeps research, meeting notes and ideas in notes/ and links them from WPs; never secrets.
+     With none/Notion, create none of these vault files; Notion is a preference, not an API setup.
+     For a custom planDir, the helper adjusts index links to root rule.md, feature.md and docs/adr/.
 4. **Git hygiene:** add `<stateDir>/`, `.env`, and `.env.*` (except `.env.example`) to `.gitignore`;
    also add `<planDir>/plan.md`, `<planDir>/history.md`, and `<planDir>/history/` (local generated views).
-   check `git ls-files` for any already tracked private files, since ignore rules do not untrack them.
+   With Obsidian also ignore `<planDir>/.obsidian/workspace*.json` (the helper adds it).
+   Check `git ls-files` for any already tracked private files, since ignore rules do not untrack them.
    Add `*.sh text eol=lf` to `.gitattributes`.
    Commit on a branch and open a PR (`chore(crew): set up agent crew`) — never push to a protected
    branch directly.
 5. **Verify:** `python .crew/bin/board.py paths`, `python .crew/bin/board.py phase "D0 Setup" "Crew ready"`.
+   Run `python .crew/bin/board.py views` and `python .crew/bin/board.py handoff`, then
+   `python .crew/bin/board.py doctor`. plan.md/history.md/history/ are generated locally and
+   may be absent in a fresh clone; handoff.md is kept in Git.
    Tell the user to type `/crew` to see the board (the plugin opens it automatically on the next
    session start).
 6. **Explain sessions:** ask the user once to run `/rename <project> lead`; the model cannot invoke

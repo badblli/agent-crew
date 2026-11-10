@@ -1,8 +1,19 @@
-# agent-crew
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
+    <img alt="agent-crew: Claude Code leads, your coding agents ship" src="docs/assets/banner-light.svg" width="100%">
+  </picture>
+</p>
 
-[![CI](https://github.com/badblli/agent-crew/actions/workflows/ci.yml/badge.svg)](https://github.com/badblli/agent-crew/actions/workflows/ci.yml)
+<p align="center">
+  <a href="https://github.com/badblli/agent-crew/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/badblli/agent-crew/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="Claude Code plugin" src="https://img.shields.io/badge/Claude%20Code-plugin-d97757">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
+  <br>
+  <b>English</b> · <a href="README.tr.md">Türkçe</a>
+</p>
 
-**Make Claude Code the tech lead of a named crew of coding agents — and watch them work.**
+**Make Claude Code the tech lead of a named crew of coding agents, and watch them work.**
 
 Claude Code plans the work, splits it into work packages, hands each one to a Claude Code or Codex worker (optionally Gemini via the Antigravity CLI) in its
 own git worktree, reviews the diff, re-runs the tests itself, commits, opens the PR and merges when
@@ -11,6 +22,48 @@ else shows up live on a crew board inside Claude Code.
 
 > Status: early, used daily on one real project. Windows + Git Bash tested; macOS/Linux should work
 > (bash, git, python, gh) but are not tested yet.
+
+<p align="center">
+  <img alt="Crew board: team banner, step track and three agents with their work package, step, engine and live command (demo data)" src="docs/assets/board-preview.svg" width="56%">
+  &nbsp;
+  <img alt="Quota pane: Claude, Codex and Gemini usage dials (demo data)" src="docs/assets/quota-preview.svg" width="40%">
+  <br>
+  <sub>Crew board and quota pane, illustrated with demo data.</sub>
+</p>
+
+## 60-second quick start
+
+1. Add the marketplace and install the plugin in Claude Code:
+
+   ```text
+   /plugin marketplace add badblli/agent-crew
+   /plugin install agent-crew@agent-crew
+   ```
+
+2. Open a project and say *"set up the crew in this project"*. `crew-init` asks which engines you
+   want (Claude workers, Codex workers or both), writes `.crew/` and the instruction files, and
+   commits them on a branch with a PR.
+3. Start a new session. The crew board, agents and quota panes open on their own.
+4. Ask for something real: *"add CSV export to the reports page"*. The lead asks only what it cannot
+   infer, writes the work package with acceptance criteria, shows it to you, starts the agents, reviews
+   their diffs, and merges when CI is green.
+
+Requirements are listed under [Install](#install).
+
+## How it works
+
+```mermaid
+flowchart LR
+  you([You<br/>product owner]) -->|request| lead[Claude Code<br/>tech lead]
+  lead -->|writes| wp[Work package<br/>.crew/plan/wp/*.md]
+  wp -->|.crew/bin/run-wp.sh| w1[Claude / Codex / Gemini worker<br/>own git worktree, no git writes]
+  w1 -->|events, report| state[(.crew/state)]
+  state --> panes[Crew board · agents · quota panes]
+  w1 -->|diff| review{Lead reviews<br/>and re-tests}
+  review -->|changes requested| w1
+  review -->|approved| ship[Commit · PR · merge on green CI]
+  lead -.->|critical decision| band[Decision band] -.-> you
+```
 
 ## What you get
 
@@ -40,26 +93,16 @@ else shows up live on a crew board inside Claude Code.
   after checking the session, with no streamed report/chat. Use attach for its feedback.
   `CREW_CLAUDE_PERMISSION_MODE` overrides the worker permission mode (default `auto`), including
   resumed and background sessions. `acceptEdits` alone does not allow headless Bash test commands.
+- **Work package lifecycle**: shipped WPs are archived under `wp/done/YYYY-MM/` in the same PR;
+  a local `plan.md` shows only active work, `history.md` records merges, and a short handoff card
+  lets the next lead session pick up where the last one stopped.
 - **Second opinion (optional)**: `jev_route.py` asks TypeSafe's Jev for engine, tier, risk and whether
   the user must decide — one request per work package, only when explicitly enabled. It sends the
   work package title, summary, goal, tasks and acceptance criteria to TypeSafe.
 - **Themes**: Classic (default), Creature Tamer (with a battle-dialog decision band), Arcade Maze, Fantasy.
   Agent ids never change, so switching themes is one line.
-- **Two skills**: `crew-init` sets a project up; `crew-lead` is the lead's playbook (write WP →
+- **Two skills**: `crew-init` sets a project up; `crew-lead` is the lead's playbook (clarify → write WP →
   run agent → review for real → feedback → ship → merge on green).
-
-## How it works
-
-```text
-you ──► Claude Code (lead) ──► work package (.crew/plan/wp/*.md)
-                │                    │
-                │        .crew/bin/run-wp.sh ──► Claude/Codex worker in ../<repo>-wt/<wp> (no git writes)
-                │                    │                     │ events, messages, report
-                ▼                    ▼                     ▼
-          review + re-test ◄── .crew/state (board, chat, runs) ──► crew board / agent panes
-                │
-                └──► commit · PR · merge on green CI
-```
 
 ## Install
 
@@ -100,6 +143,9 @@ accept that access. The lead can run dependency-based checks in the main checkou
 ```text
 .crew/config.json        project, lang (en|tr), engines, planDir, stateDir
 .crew/plan/              team.json (roster, steps, phases, themes), models.json, wp/*.md
+.crew/plan/wp/done/      shipped WPs, archived by month in the PR that ships them
+.crew/plan/plan.md       active work, generated (git-ignored); history.md and history/ likewise
+.crew/plan/handoff.md    short card the lead reads at session start
 .crew/bin/               board.py, run-wp.sh, tell.sh, lib.sh, sync.sh, usage.py, jev_route.py
 .crew/state/             board, conversations, runs (git-ignored)
 AGENTS.md                shared hard rules and report format (at most 8 KB)
@@ -112,8 +158,9 @@ docs/adr/                decisions, consulted when relevant
 .crew/roles-rendered.json hashes used to preserve locally edited roles
 ```
 
-The always-loaded instruction core stays short. Plan/history/handoff, notes and completed-WP
-archives are read only when the assigned WP links them. Unknown project details stay `unknown`.
+The always-loaded instruction core stays short. Workers read plan/history/handoff, notes and
+completed-WP archives only when the assigned WP links them; the lead reads only the handoff card at
+session start. Unknown project details stay `unknown`.
 Templates ship in English; crew-init translates headings for Turkish projects while preserving
 paths, config keys and the shared final-report format.
 
@@ -134,6 +181,16 @@ chat; dedicated board session/worker-quota widgets require hook support.
 The installed crew creates project-specific WPs and local run logs in the destination project.
 Review WPs before committing them; keep `.crew/state/` and `.env*` out of Git. Test fixtures in
 the plugin should use synthetic events rather than captured agent conversations.
+
+## Meet Reis
+
+<img align="right" alt="Reis, the agent-crew mascot: an octopus in a captain's hat holding a wrench, a magnifier, a pull-request flag and a test tube" src="docs/assets/mascot.svg" width="150">
+
+Reis (Turkish for *captain*) keeps the crew together: eight arms for parallel agents, each one busy
+with a wrench, a magnifier, a test tube or a pull-request flag. The artwork in `docs/assets/` is
+generated by `make_brand.py` and `make_previews.py` there; it is MIT-licensed like the rest of the repo.
+
+<br clear="right">
 
 ## License
 
