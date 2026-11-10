@@ -20,7 +20,7 @@ lines, board notes, the project's notes (`config.notes`) — uses the agent's na
 
 Read `config.engines`: `["claude"]`, `["codex"]`, or `["claude","codex"]`. A Claude-only crew
 uses Claude Code worker sessions; a Codex-only crew uses Codex workers; a mixed crew chooses per WP
-or roster member. The lead remains Claude Code in all three setups. Honor the selected engines.
+or roster member. Claude Code normally leads; Codex can be the fallback when enabled. Honor the selected engines.
 agy remains an optional explicit engine for projects that have configured it.
 
 At the start, tell the user once: `/rename <project> lead`. The model cannot execute this built-in
@@ -61,6 +61,26 @@ context; consult team/model files and relevant references on demand as work requ
 At session end or before compaction, run `python .crew/bin/board.py handoff`, then fill `## Next`
 with the next concrete actions. The card is overwritten each time; keep it at most 40 lines.
 Do not recover context by reading the generated plan or history.
+
+## Claude quota handover and return
+
+As the Claude lead, before launching work and after a usage-limit failure, read
+`<stateDir>/usage/claude.json`. The existing hook writes `updated_at` and
+`windows: [{label, percent, resetsAt}]` (percent is 0–100; resetsAt is an ISO time or null).
+If any window is at least 90 %, or a worker/lead call fails with a usage limit, stop launching
+new work. Only if `codex` is in `config.engines`, run `python .crew/bin/board.py handoff --to codex`,
+fill `## Next` with concrete pending actions, and tell the user the affected window's reset time
+and this exact paste command:
+`codex "Use the crew-lead skill as fallback lead: read .crew/plan/handoff.md and continue."`
+For a custom planDir, also tell Codex the configured handoff path. If the reset time is absent,
+say it is unknown; use a worker's `<run>/resume_at` if available. Without Codex enabled, keep
+Claude as lead, report the reset time and wait; do not hand over or enable another engine.
+
+When Claude returns, run `python .crew/bin/board.py lead`. If it says `codex`, read `handoff.md`
+before resuming. Review every PR the fallback lead opened as an agent's work: read the diff and
+re-run the relevant tests yourself before merging. Also do this when the handoff already names
+Claude as next lead. Then run `python .crew/bin/board.py lead claude` to reclaim leadership.
+Codex keeps board.json current through the scripts; its chat has no plugin panes or decision band.
 
 ## The loop
 

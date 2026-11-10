@@ -13,6 +13,7 @@ Usage:
   board.py name <agent-id>                    print the agent\'s name in the active theme
   board.py paths                              print "<planDir> <stateDir>" (absolute)
   board.py model <wp>                         print "<model> <effort> <tier>" from the WP's "- Model:" line
+  board.py lead [claude|codex]                print or set the current lead
   board.py ingest <wp> [run-dir]              read engine JSON events, log messages and session metadata
   board.py session <wp> "<open command>"      publish a worker's interactive session command
   board.py report <wp> <report.md>            log the agent's final report summary
@@ -20,7 +21,7 @@ Usage:
   board.py views                             regenerate plan.md and rolling history.md
   board.py doctor                            check config, specs, links and Git hygiene
   board.py init-notes <template-plan-dir>     install optional Obsidian files from plugin templates
-  board.py handoff                           overwrite the lead's short session card
+  board.py handoff [--to codex|claude]        write and print the short session card; optionally set next lead
   board.py decide "<question>" "<label>|<detail>" ...   ask the user (band above the prompt)
   board.py decide --clear                     remove the pending decision
 """
@@ -297,21 +298,44 @@ def views() -> None:
                                   + history_entries(path), key=lambda entry: entry[2:12], reverse=True))
 
 
-def handoff() -> None:
+def lead(next_lead: str | None = None) -> str:
+    board = _load()
+    current = board.get("lead", {}).get("id", "claude")
+    if next_lead is not None:
+        if next_lead not in ("claude", "codex"):
+            raise SystemExit("usage: board.py lead [claude|codex]")
+        if next_lead == "codex" and "codex" not in CONFIG.get("engines", []):
+            raise SystemExit("Codex fallback requires codex in config.engines")
+        if next_lead != current or "lead" not in board:
+            board["lead"] = {"id": next_lead, "since": datetime.now().astimezone().isoformat(timespec="seconds")}
+            _save(board)
+        current = next_lead
+    return current
+
+
+def handoff(next_lead: str | None = None) -> str:
+    current = lead(next_lead)
     board = _load()
     lines = ["# Handoff", "", "Phase: " + cell(board.get("phase", "")),
-             "Focus: " + cell(board.get("focus", "")), "", "## Open WPs"]
+             "Focus: " + cell(board.get("focus", "")), "", "## Lead", current]
+    if current == "codex":
+        lines.append('codex "Use the crew-lead skill as fallback lead: read .crew/plan/handoff.md and continue."')
+        if CONFIG["planDir"] != ".crew/plan":
+            lines.append("Configured handoff: " + cell(CONFIG["planDir"]) + "/handoff.md (read this card).")
+    lines.extend(["", "## Open WPs"])
     opened = [(wp, item) for wp, item in board["items"].items() if item.get("step") != "merged"]
     # Leave room for the decision and the lead's Next section, even on large boards.
-    lines.extend(f"- {cell(wp)}: {cell(item.get('step', ''))}" for wp, item in opened[:25])
-    if len(opened) > 25:
-        lines.append(f"- … {len(opened) - 25} more open WPs (board.py views)")
+    lines.extend(f"- {cell(wp)}: {cell(item.get('step', ''))}" for wp, item in opened[:20])
+    if len(opened) > 20:
+        lines.append(f"- … {len(opened) - 20} more open WPs (board.py views)")
     decision_path = LEAD / "decision.json"
     decision = json.loads(decision_path.read_text(encoding="utf-8")) if decision_path.exists() else {}
     question = decision.get("question", "none") if decision.get("status") == "open" else "none"
     lines.extend(["", "## Open decision", cell(question), "", "## Next", "- <lead: next action>"])
     PLAN.mkdir(parents=True, exist_ok=True)
-    (PLAN / "handoff.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    text = "\n".join(lines) + "\n"
+    (PLAN / "handoff.md").write_text(text, encoding="utf-8")
+    return text
 
 
 def _load() -> dict:
@@ -474,7 +498,16 @@ def main(argv: list[str]) -> None:
     elif cmd == "views":
         views()
     elif cmd == "handoff":
-        handoff()
+        if not args:
+            print(handoff(), end="")
+        elif len(args) == 2 and args[0] == "--to" and args[1] in ("codex", "claude"):
+            print(handoff(args[1]), end="")
+        else:
+            raise SystemExit("usage: board.py handoff [--to codex|claude]")
+    elif cmd == "lead":
+        if len(args) > 1:
+            raise SystemExit("usage: board.py lead [claude|codex]")
+        print(lead(args[0] if args else None))
     elif cmd == "model":
         routing = json.loads((PLAN / "models.json").read_text(encoding="utf-8"))
         spec = spec_path(args[0]).read_text(encoding="utf-8")
@@ -490,6 +523,9 @@ def main(argv: list[str]) -> None:
         default_engine = roster_engine if roster_engine in enabled else enabled[0]
         engine = (os.environ.get("CREW_ENGINE_FORCE", "").lower() or engine
                   or os.environ.get("CREW_ENGINE", "").lower() or default_engine)
+        if engine == "claude" and lead() == "codex" and not os.environ.get("CREW_ENGINE_FORCE"):
+            engine = "codex"
+            print("Codex fallback lead: routing Claude work to Codex (shared Claude quota).", file=sys.stderr)
             
         tiers_key = f"{engine}_tiers" if engine != "codex" else "tiers"
         if tiers_key not in routing or tier not in routing[tiers_key]:

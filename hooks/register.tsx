@@ -72,6 +72,7 @@ const STRINGS = {
     agentsTitle: 'agents', openAgents: 'Browse the crew agents one by one', prev: '‹ previous', next: 'next ›', nowDoing: 'now',
     binUpdated: (v: string, files: string) => `Crew scripts updated to agent-crew ${v} (${files}); commit .crew/bin`,
     binKept: (files: string) => `Crew scripts changed in this project, not updated: ${files}`,
+    fallbackLead: (since: string) => `Lead: Codex (fallback) since ${since}`,
     updateAvailable: (latest: string, installed: string) =>
       `agent-crew ${latest} is out (you have ${installed}): /plugin update agent-crew@agent-crew`,
   },
@@ -98,6 +99,7 @@ const STRINGS = {
     agentsTitle: 'ajanlar', openAgents: 'Ekip ajanlarını tek panelde sırayla gez', prev: '‹ önceki', next: 'sonraki ›', nowDoing: 'şimdi',
     binUpdated: (v: string, files: string) => `Ekip script'leri agent-crew ${v} sürümüne güncellendi (${files}); .crew/bin'i commit et`,
     binKept: (files: string) => `Bu projede değiştirilmiş ekip script'leri güncellenmedi: ${files}`,
+    fallbackLead: (since: string) => `Lider: Codex (yedek) ${since}'den beri`,
     updateAvailable: (latest: string, installed: string) =>
       `agent-crew ${latest} çıktı (sende ${installed} var): /plugin update agent-crew@agent-crew`,
   },
@@ -632,6 +634,18 @@ async function warnOnce($: any) {
   }
 }
 
+/** Re-render native roles and the Codex fallback skill with their shared hash protection. */
+async function syncRoles($: any) {
+  const script = `${$.plugin.root}/tools/render_roles.py`
+  for (const py of ['python', 'python3', 'py']) {
+    const r = await $.process.run([py, script, '--project', '.'], { timeoutMs: 20000 }).catch(() => null)
+    if (!r || r.exitCode !== 0) continue
+    const message = r.stdout.trim()
+    if (message && message !== 'Roles are up to date.') await $.ui.toast(message)
+    return
+  }
+}
+
 /** Brings .crew/bin up to the installed plugin's templates (tools/sync_bin.py keeps local edits). */
 async function syncBin($: any, c: CrewConfig) {
   const script = `${$.plugin.root}/tools/sync_bin.py`
@@ -643,6 +657,7 @@ async function syncBin($: any, c: CrewConfig) {
     const changed = [...out.updated, ...out.added]
     if (changed.length) void Promise.resolve($.ui.toast(S.binUpdated(out.version, changed.join(', ')))).catch(() => undefined)
     if (out.kept.length) void Promise.resolve($.ui.toast(S.binKept(out.kept.join(', ')))).catch(() => undefined)
+    if (out.status === 'ok') await syncRoles($)
     return
   }
 }
@@ -926,6 +941,11 @@ export const register: Register = (on, options) => {
     const hp = await read($, health)
     if (!c.isActive) return <Text dimColor>{S.notConfigured}</Text>
     const q = await read($, usage)
+    const boardLead = (await readJson($, `${c.stateDir}/board.json`, {})).lead
+    const since = new Date(boardLead?.since)
+    const fallback = boardLead?.id === 'codex'
+      ? S.fallbackLead(Number.isNaN(since.getTime()) ? '??:??' : `${String(since.getHours()).padStart(2, '0')}:${String(since.getMinutes()).padStart(2, '0')}`)
+      : ''
     const BoardSvg = (e.surface === 'desktop' || e.surface === 'mobile' ? ($.ui.resolve(e) as any).Svg : undefined) as any
     return (
       <Box flexDirection="column" gap={1}>
@@ -950,6 +970,7 @@ export const register: Register = (on, options) => {
             <Text bold>{snap.phase || S.noPhase}</Text>
           </Text>
           {snap.focus !== '' && <Text dimColor>{snap.focus}</Text>}
+          {fallback !== '' && <Text color="yellow" bold>{fallback}</Text>}
         </Box>
 
         {snap.phases.length > 0 && (

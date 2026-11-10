@@ -59,6 +59,9 @@ The plugin's files are in this plugin's root (the directory that contains `.clau
      Claude-only writes `.claude/agents/crew-*.md`; Codex-only writes `.codex/agents/crew-*.toml`;
      both writes both sets. The renderer uses the project's models.json and records hashes in
      `.crew/roles-rendered.json`; keep that manifest so future renders preserve edited files.
+     With Codex enabled it also renders `.agents/skills/crew-lead/SKILL.md` with the fallback
+     lead rules and the same edit protection. Session-start sync re-runs this renderer; keep
+     any locally edited skill it reports and review the upstream changes manually.
      Review any files reported as locally changed rather than overwriting them. For Turkish,
      translate role prose deliberately after rendering; later renders will preserve those edits.
      Codex repository skills belong in `.agents/skills/<name>/SKILL.md`. Custom agent definitions
