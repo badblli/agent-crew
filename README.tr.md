@@ -184,11 +184,11 @@ Kurulan ekip, hedef projede projeye özel WP'ler ve yerel koşu kayıtları olu�
 önce gözden geçir; `.crew/state/` ve `.env*` dosyalarını Git dışında tut. Eklentideki test fixture'ları,
 kaydedilmiş ajan konuşmaları yerine sentetik olaylar kullanmalıdır.
 
-## Reis ile tanış
+## Reiss ile tanış
 
-<img align="right" alt="agent-crew maskotu Reis: kaptan şapkalı, elinde anahtar, büyüteç, pull request bayrağı ve test tüpü tutan bir ahtapot" src="docs/assets/mascot.svg" width="150">
+<img align="right" alt="agent-crew maskotu Reiss: kaptan şapkalı, elinde anahtar, büyüteç, pull request bayrağı ve test tüpü tutan bir ahtapot" src="docs/assets/mascot.svg" width="150">
 
-Reis ekibi bir arada tutar: paralel ajanlar için sekiz kol, her biri iş başında: anahtar, büyüteç, test
+Reiss (adı Türkçe *reis*ten geliyor) ekibi bir arada tutar: paralel ajanlar için sekiz kol, her biri iş başında: anahtar, büyüteç, test
 tüpü ya da pull request bayrağı. `docs/assets/` içindeki görseller oradaki `make_brand.py` ve
 `make_previews.py` ile üretilir; reponun geri kalanı gibi MIT lisanslıdır.
 

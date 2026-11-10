@@ -1,4 +1,4 @@
-"""Generate agent-crew brand SVGs: mascot (Reis), README banners, social preview.
+"""Generate agent-crew brand SVGs: mascot (Reiss), README banners, social preview.
 
 Usage: python docs/assets/make_brand.py docs/assets
 (social-preview.png is a 1280x640 browser screenshot of social-preview.svg.)
@@ -28,7 +28,7 @@ def suckers(points):
 
 
 def mascot_group():
-    """Reis: a small octopus captain. 256x256 coordinate space."""
+    """Reiss: a small octopus captain. 256x256 coordinate space."""
     arms = "".join([
         # lower, resting arms
         arm("M100 150 C 86 182, 58 196, 66 220 C 72 236, 92 228, 86 216"),
@@ -111,7 +111,7 @@ def svg(viewbox, body, title=None, extra=""):
 
 MASCOT = mascot_group()
 (OUT / "mascot.svg").write_text(
-    svg("-4 20 264 228", MASCOT, "Reis, the agent-crew octopus captain"), encoding="utf-8")
+    svg("-4 20 264 228", MASCOT, "Reiss, the agent-crew octopus captain"), encoding="utf-8")
 
 THEMES = {
     "light": dict(bg1="#f4f8fc", bg2="#e3edf8", wave="#cfe0f2", wave2="#bcd3ec", title="#1f2a44",
