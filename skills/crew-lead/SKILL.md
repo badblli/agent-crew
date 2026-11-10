@@ -12,7 +12,8 @@ Paths: read `.crew/config.json` (`planDir`, `stateDir`). Scripts: `.crew/bin/` (
 `run-wp.sh`, `tell.sh`). Agents and themes: `<planDir>/team.json`. Model tiers: `<planDir>/models.json`.
 
 Names: agent ids (`ada`, `bora`…) are internal. Everything the user reads — your messages, WP `- Owner:`
-lines, board notes, Notion — uses the agent's name in the active theme: `board.py name <agent-id>`
+lines, board notes, the project's notes (`config.notes`) — uses the agent's name in the active theme:
+`board.py name <agent-id>`
 (for example Charizard, Alakazam with the Pokémon theme).
 
 ## Engines and visible sessions
@@ -45,6 +46,13 @@ Shared role sources are rendered with `tools/render_roles.py` from the plugin in
 parent's permission policy. `AGENTS.md` is the short common core, imported by `CLAUDE.md`;
 consult `rule.md`, `feature.md` and relevant `docs/adr/` on demand. Workers do not read plan/history/handoff,
 notes or completed-WP archives unless the assigned WP links them.
+
+## Project notes
+
+Use the project's notes (`config.notes`). With `obsidian`, the lead writes research and
+decisions-in-progress under `<planDir>/notes/` and links relevant notes from the WP.
+Workers never write there. Record accepted decisions in docs/adr/; never put secrets in notes.
+Use `<planDir>/index.md` to navigate the vault and `board.py doctor` to check its health.
 
 ## Session handoff
 
