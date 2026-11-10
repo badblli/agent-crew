@@ -43,13 +43,29 @@ only auto-accepts file edits and leaves Bash denied in a headless `-p` run.
 Shared role sources are rendered with `tools/render_roles.py` from the plugin into native
 `.claude/agents/` and/or `.codex/agents/` definitions. They do not replace the WP runner or the
 parent's permission policy. `AGENTS.md` is the short common core, imported by `CLAUDE.md`;
-consult `rule.md`, `feature.md` and relevant `docs/adr/` on demand. Do not read plan/history/handoff,
+consult `rule.md`, `feature.md` and relevant `docs/adr/` on demand. Workers do not read plan/history/handoff,
 notes or completed-WP archives unless the assigned WP links them.
+
+## Session handoff
+
+At session start, read only `.crew/config.json` and `<planDir>/handoff.md` if it exists to recover
+context; consult team/model files and relevant references on demand as work requires them.
+At session end or before compaction, run `python .crew/bin/board.py handoff`, then fill `## Next`
+with the next concrete actions. The card is overwritten each time; keep it at most 40 lines.
+Do not recover context by reading the generated plan or history.
 
 ## The loop
 
+0. **Clarify:** for a new request, infer what the project and request already establish. Ask only
+   what cannot be inferred, using multiple-choice `AskUserQuestion`. Write the WP(s), then show
+   the user their summaries and acceptance criteria. For new or risky scope, wait for approval
+   before starting agents. Tiny jobs skip this ceremony and can be handled directly.
+   Superpowers is optional and is not installed by crew-init. If present, its brainstorming skill
+   may drive clarification, but write the plan into the WP. Crew's `run-wp.sh` and worktrees take
+   precedence over its subagent-driven-development and using-git-worktrees skills.
 1. **Write a WP** from `<planDir>/wp/TEMPLATE.md`: one user-visible outcome, scope in/out, tasks,
-   measurable acceptance criteria, `- Summary:` in the crew language, `- Engine:` (claude or codex;
+   measurable acceptance criteria with ids (`AC-01`, `AC-02`, …; reports answer per id),
+   `- Role:`, `- Summary:` in the crew language, `- Engine:` (claude or codex;
    optional agy), `- Model:` tier
    (light for mechanical, standard by default, deep for correctness-critical, peak only with a
    reason). Never put private data (customer names, secrets) in a WP that will be committed.
@@ -80,10 +96,17 @@ notes or completed-WP archives unless the assigned WP links them.
 5. **Feedback:** `.crew/bin/tell.sh <wp> "<specific change>"` resumes the same agent thread on the
    same model (cache reuse). Move steps with `board.py step <wp> reviewing|changes_requested|approved
    "<note>"`; notes appear in the agent's pane.
-6. **Ship:** commit in the agent's worktree with a Conventional Commit message (mention the agent
+6. **Ship:** from the main checkout before the ship commit, run `python .crew/bin/board.py archive <wp>`;
+   the move to `wp/done/YYYY-MM/` is written into the agent's worktree, taken from the latest run's
+   `workdir` (or pass `--worktree <dir>` explicitly). Then commit in that worktree
+   with a Conventional Commit message (mention the agent
    name), push, `gh pr create` to the default branch, then `board.py step <wp> pr_open`. When CI is
    green and the PR is clean, merge it **right away**, delete the branch, `board.py step <wp> merged`,
-   and tell the user what landed. Do not leave approved work sitting in open PRs. Update the main
+   and tell the user what landed. `step` regenerates the active-only `plan.md` and records the merge
+   in `history.md` (newest 30; older entries in `history/YYYY.md`). Include the PR URL in the step
+   note if known; `board.py views` regenerates these local, Git-ignored views and backfills history
+   from committed WP archives on a fresh clone. Agents do not read them.
+   Do not leave approved work sitting in open PRs. Update the main
    checkout with `.crew/bin/sync.sh` (removes local WP copies that landed through the PR).
 7. **Tiny jobs:** if a WP turns out to be a few lines, stop the agent and do it yourself — agent
    runs cost tokens.
