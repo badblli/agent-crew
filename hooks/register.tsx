@@ -60,8 +60,8 @@ const STRINGS = {
     send: 'Send', noteSent: (n: string) => `Your note went to the lead → ${n}`, requestSent: 'Request sent to the lead',
     notFound: 'Agent not found.', staleBoard: 'Board could not refresh: ', updated: (a: string) => `updated ${a} ago`,
     updating: 'updating…', refresh: (n: number) => `refresh #${n}`, decisionTitle: '⚑ The lead needs your decision  ',
-    later: 'Later', wildDecision: 'A wild DECISION appeared!', waiting: 'waiting…', whatWill: (n: string) => `What will ${n} do?`,
-    run: 'RUN', chose: (l: string) => `${l} chosen — it's super effective! ⚡`, noteMsg: 'Crew note', requestMsg: 'Crew request',
+    later: 'Later', battleDecision: 'A DECISION blocks the path!', waiting: 'waiting…', yourMove: (n: string) => `Your move, ${n}!`,
+    run: 'RUN', chose: (l: string) => `${l} chosen — critical hit! ⚡`, noteMsg: 'Crew note', requestMsg: 'Crew request',
     noteHint: (n: string) => `(Sent from the panel. Review it as the lead; if it fits, relay it to ${n} with tell.sh.)`,
     statusQ: 'Summarize the status of this work package and the next step.', stopQ: 'Stop this agent and write why on the board.',
     decisionMsg: 'Decision', boardOpened: 'Crew board opened.', paneOpened: (n: string) => `${n} pane opened.`,
@@ -86,8 +86,8 @@ const STRINGS = {
     send: 'Gönder', noteSent: (n: string) => `Notun lead'e iletildi → ${n}`, requestSent: "İstek lead'e iletildi",
     notFound: 'Ajan bulunamadı.', staleBoard: 'Pano güncellenemedi: ', updated: (a: string) => `güncellendi ${a} önce`,
     updating: 'güncelleniyor…', refresh: (n: number) => `${n}. yenileme`, decisionTitle: '⚑ Lead senden karar bekliyor  ',
-    later: 'Sonra', wildDecision: 'Vahşi bir KARAR belirdi!', waiting: 'bekliyor…', whatWill: (n: string) => `${n} ne yapacak?`,
-    run: 'KAÇ', chose: (l: string) => `${l} seçildi — süper etkili! ⚡`, noteMsg: 'Ekip notu', requestMsg: 'Ekip isteği',
+    later: 'Sonra', battleDecision: 'Yolunu bir KARAR kesti!', waiting: 'bekliyor…', yourMove: (n: string) => `Sıra sende, ${n}!`,
+    run: 'KAÇ', chose: (l: string) => `${l} seçildi — kritik vuruş! ⚡`, noteMsg: 'Ekip notu', requestMsg: 'Ekip isteği',
     noteHint: (n: string) => `(Panelden gönderildi. Lead olarak değerlendir; uygunsa tell.sh ile ${n}'ya ilet.)`,
     statusQ: 'Bu işin durumunu ve sıradaki adımı kısaca özetler misin?', stopQ: 'Bu ajanı durdur ve nedenini panoya yaz.',
     decisionMsg: 'Karar', boardOpened: 'Ekip panosu açıldı.', paneOpened: (n: string) => `${n} paneli açıldı.`,
@@ -243,6 +243,9 @@ async function readChat($: any, c: CrewConfig, wp: string): Promise<ChatEntry[]>
   return entries
 }
 
+const THEME_ALIAS: Record<string, string> = { pokemon: 'tamer', pacman: 'arcade' }
+const BAR_ALIAS: Record<string, string> = { pokeball: 'orb', pacman: 'maze' }
+
 async function scan($: any, c: CrewConfig): Promise<Snapshot> {
   const team = await readJson($, `${c.planDir}/team.json`, { agents: [], steps: [], phases: [] })
   const board = await readJson($, `${c.stateDir}/board.json`, { items: {} })
@@ -250,7 +253,8 @@ async function scan($: any, c: CrewConfig): Promise<Snapshot> {
   const items: Record<string, { agent?: string; step?: string; note?: string }> = board.items ?? {}
 
   // A theme renames and recolors people; ids (and the files keyed by them) never change.
-  const theme = team.themes?.[team.theme] ?? {}
+  // Theme keys and bars were renamed in 0.5.3; older projects keep their own team.json and still resolve.
+  const theme = team.themes?.[team.theme] ?? team.themes?.[THEME_ALIAS[team.theme] ?? ''] ?? {}
   const skin = (m: Member, o: Partial<Member> | undefined): Member => ({ avatar: '●', ...m, ...(o ?? {}) })
 
   const agents: AgentView[] = []
@@ -305,7 +309,7 @@ async function scan($: any, c: CrewConfig): Promise<Snapshot> {
     lead: skin(team.lead ?? LEAD, theme.lead),
     user: skin(team.user ?? USER, theme.user),
     steps: team.steps ?? [],
-    bar: theme.bar ?? 'blocks',
+    bar: BAR_ALIAS[theme.bar] ?? theme.bar ?? 'blocks',
     themeId: team.theme ?? '',
     themeTitle: theme.title ?? '',
     teamTokens: agents.reduce((sum, a) => sum + a.totalTokens, 0),
@@ -469,8 +473,8 @@ const kTokens = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(
 function stepBar(snap: Snapshot, step: string): string {
   const ids = snap.steps.filter(s => s.id !== 'changes_requested').map(s => s.id)
   const at = step === 'changes_requested' ? ids.indexOf('reviewing') : ids.indexOf(step)
-  if (snap.bar === 'pacman') return ids.map((_, i) => (i < at ? ' ' : i === at ? 'ᗧ' : '•')).join('')
-  if (snap.bar === 'pokeball') return ids.map((_, i) => (i < at ? '◓' : i === at ? '⚡' : '·')).join('')
+  if (snap.bar === 'maze') return ids.map((_, i) => (i < at ? ' ' : i === at ? 'ᗧ' : '•')).join('')
+  if (snap.bar === 'orb') return ids.map((_, i) => (i < at ? '●' : i === at ? '◉' : '○')).join('')
   if (snap.bar === 'mana') return ids.map((_, i) => (i <= at ? '◆' : '◇')).join('')
   return ids.map((_, i) => (i <= at ? '▰' : '▱')).join('')
 }
@@ -851,11 +855,11 @@ export const register: Register = (on, options) => {
     if (!c.isActive || !d || e.props.hasSurvey || (await read($, hiddenDecision)) === d.id) return next(e)
     const S = strings(c)
     const { Box, Button, Text } = $.ui.resolve(e)
-    if (snap.bar === 'pokeball') {
+    if (snap.bar === 'orb') {
       return (
         <Box flexDirection="column" borderStyle="double" borderColor={snap.lead.color} paddingX={1}>
           <Box flexDirection="row" justifyContent="space-between">
-            <Text bold>{S.wildDecision}</Text>
+            <Text bold>{S.battleDecision}</Text>
             <Text color={snap.lead.color} bold>{snap.lead.avatar} {snap.lead.name.toUpperCase()} Lv.∞</Text>
           </Box>
           <Text color={snap.lead.color}>HP ▰▰▰▰▰▰▰▰▱▱  {S.waiting}</Text>
@@ -863,7 +867,7 @@ export const register: Register = (on, options) => {
             <Text wrap="wrap">{d.question}</Text>
           </Box>
           <Box flexDirection="column" borderStyle="round" borderColor={snap.user.color} paddingX={1}>
-            <Text color={snap.user.color} bold>{snap.user.avatar} {S.whatWill(snap.user.name)}</Text>
+            <Text color={snap.user.color} bold>{snap.user.avatar} {S.yourMove(snap.user.name)}</Text>
             <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
               {d.options.map((o, i) => (
                 <Button

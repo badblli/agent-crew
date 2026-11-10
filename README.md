@@ -22,7 +22,7 @@ else shows up live on a crew board inside Claude Code.
     agent and you. Send a note to an agent — it goes through the lead first.
   - **Quota** (`/quota`): Claude plan windows and context, Codex 5-hour and weekly limits, Gemini tokens
     today; a toast when an engine passes 90 %.
-  On desktop and mobile the panes draw SVG dials, a Poké-ball step track and a team banner; the
+  On desktop and mobile the panes draw SVG dials, a step track and a team banner; the
   terminal gets colored text bars.
 - **Decision band** above the prompt when the lead needs you; pick an option with a key.
 - **Model routing**: each work package declares a tier (light / standard / deep / peak); review rounds
@@ -43,7 +43,7 @@ else shows up live on a crew board inside Claude Code.
 - **Second opinion (optional)**: `jev_route.py` asks TypeSafe's Jev for engine, tier, risk and whether
   the user must decide — one request per work package, only when explicitly enabled. It sends the
   work package title, summary, goal, tasks and acceptance criteria to TypeSafe.
-- **Themes**: Classic (default), Pokémon-style (with a battle-dialog decision band), Pac-Man, Fantasy.
+- **Themes**: Classic (default), Creature Tamer (with a battle-dialog decision band), Arcade Maze, Fantasy.
   Agent ids never change, so switching themes is one line.
 - **Two skills**: `crew-init` sets a project up; `crew-lead` is the lead's playbook (write WP →
   run agent → review for real → feedback → ship → merge on green).

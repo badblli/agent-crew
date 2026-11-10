@@ -13,7 +13,7 @@ Paths: read `.crew/config.json` (`planDir`, `stateDir`). Scripts: `.crew/bin/` (
 
 Names: agent ids (`ada`, `bora`…) are internal. Everything the user reads — your messages, WP `- Owner:`
 lines, board notes, Notion — uses the agent's name in the active theme: `board.py name <agent-id>`
-(for example Charizard, Alakazam with the Pokémon theme).
+(for example Blazeback, Mindrel with the Creature Tamer theme).
 
 ## Engines and visible sessions
 

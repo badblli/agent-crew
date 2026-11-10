@@ -1,6 +1,6 @@
 ---
 name: crew-init
-description: Set up an agent crew in the current project (Claude Code as tech lead, Claude or Codex workers or both, live crew board). Use when the user asks to set up / initialize / add the crew, the team, the agents or the Pokémon team in a project, or when the crew board says no crew is configured.
+description: Set up an agent crew in the current project (Claude Code as tech lead, Claude or Codex workers or both, live crew board). Use when the user asks to set up / initialize / add the crew, the team, the agents or a themed team in a project, or when the crew board says no crew is configured.
 ---
 
 # Set up an agent crew in this project
@@ -23,7 +23,7 @@ The plugin's files are in this plugin's root (the directory that contains `.clau
    availability with `claude --version`. Verify that `plan/models.json` names models available to
    the selected accounts; adapt unavailable model IDs before starting an agent.
 2. **Ask in one AskUserQuestion:** worker engines (Claude / Codex / both), crew language (en/tr),
-   theme (classic default, pokemon, pacman, fantasy), and categories of private information that
+   theme (classic default, tamer, arcade, fantasy), and categories of private information that
    must never be committed. Default engines to both if the Codex CLI check passed, otherwise Claude.
    Infer known answers, but include engine choice in this single question. Do not ask the user to
    paste secrets or private examples.
