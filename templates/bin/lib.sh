@@ -109,9 +109,9 @@ except:
 # A headless worker is a separately named session; --bg is launch-only, without -p.
 run_claude() {
   local wp="$1" run="$2" workdir="$3" prompt="$4" thread="${5:-}"
-  local model effort tier rc ingest_rc name
+  local model effort rc ingest_rc name
   local -a args
-  read -r model effort tier < "$run/model"
+  read -r model effort _ < "$run/model"
   name="$(board name "$(board agent "$wp" | tr -d '\r')" | tr -d '\r') · $wp"
   printf '%s\n' "$name" >"$run/session_name"
   args=(--name "$name" --model "$model" --permission-mode "${CREW_CLAUDE_PERMISSION_MODE:-auto}")
