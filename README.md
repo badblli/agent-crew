@@ -125,17 +125,26 @@ Use Claude Code with plugin hooks. To run Codex workers, install the Codex CLI a
 Codex has no crew panes, decision band or update toasts. Use `python .crew/bin/board.py status`
 for the board, and answer decision and PR merge requests in chat.
 
-To update, run `codex plugin marketplace upgrade agent-crew` and start a new Codex session.
-If `/plugins` still shows the old version, uninstall and reinstall Agent Crew from the refreshed
-marketplace. The trusted hook refreshes the project's crew scripts and roles.
+Codex updates Agent Crew by itself: each time Codex starts, it refreshes Git marketplaces in the
+background and reinstalls the plugin from the newest `main`. The new version is used from the next
+session. To update right away, run `codex plugin marketplace upgrade agent-crew` and start a new
+session. To stay on one release instead, add the marketplace pinned to a tag:
+`codex plugin marketplace add badblli/agent-crew --ref v0.5.5`. The trusted hook refreshes the
+project's crew scripts and roles.
 
 ## Updating Claude Code
 
-In a crew project the plugin checks GitHub once a day for a newer version and shows a toast when
-one is out: a single read of the published `plugin.json`, nothing sent. Turn it off with the
-plugin's *Check for updates* option (`updateCheck`).
+Claude Code does not update third-party plugins automatically unless you turn it on: run `/plugin`,
+open **Marketplaces**, select `agent-crew` and choose **Enable auto-update**. Claude Code then
+checks a while after your first message and asks you to run `/reload-plugins` (or start a new
+session). Only a new `version` counts as an update.
 
-`/plugin update agent-crew@agent-crew`, then start a new session. On session start the plugin brings
+Without auto-update, the plugin checks GitHub once a day in a crew project and shows a toast when a
+newer version is out: a single read of the published `plugin.json`, nothing sent. Turn it off with
+the plugin's *Check for updates* option (`updateCheck`).
+
+To update by hand, run `claude plugin update agent-crew@agent-crew` in a terminal (or `/plugin` →
+**Installed** → Agent Crew → **Update now**), then start a new session. On session start the plugin brings
 each crew project's `.crew/bin/` up to the installed version (`tools/sync_bin.py`) and says which
 files changed; commit them. A script you edited in the project is left as is and named in a toast.
 Nothing is replaced while an agent run is active. Opt out per project with `"autoUpdate": false` in
