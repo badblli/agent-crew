@@ -126,17 +126,26 @@ Codex CLI'ı da kur ve hesabına giriş yap.
 Codex'te ekip panelleri, karar bandı ve güncelleme bildirimleri yoktur. Panoyu görmek için
 `python .crew/bin/board.py status` komutunu kullan. Karar ve PR birleştirme isteklerini sohbette yanıtla.
 
-Güncellemek için `codex plugin marketplace upgrade agent-crew` komutunu çalıştır ve yeni bir Codex
-oturumu aç. `/plugins` hâlâ eski sürümü gösteriyorsa Agent Crew eklentisini kaldırıp güncel
-marketplace'ten yeniden kur. Onaylanan hook, projenin ekip script'lerini ve rollerini günceller.
+Codex, Agent Crew'u kendisi günceller: her açılışta Git marketplace'lerini arka planda yeniler ve
+eklentiyi `main`'in en yeni hâlinden yeniden kurar. Yeni sürüm bir sonraki oturumda kullanılır. Hemen
+güncellemek için `codex plugin marketplace upgrade agent-crew` komutunu çalıştır ve yeni bir oturum aç.
+Tek bir sürümde kalmak istersen marketplace'i bir etikete sabitleyerek ekle:
+`codex plugin marketplace add badblli/agent-crew --ref v0.5.5`. Onaylanan hook, projenin ekip
+script'lerini ve rollerini günceller.
 
 ## Claude Code eklentisini güncelleme
 
-Bir ekip projesinde eklenti günde bir kez GitHub'da yeni sürüm olup olmadığına bakar ve varsa bildirim
-gösterir: yayımlanmış `plugin.json` tek seferlik okunur, hiçbir şey gönderilmez. Eklentinin
-*Check for updates* seçeneğiyle (`updateCheck`) kapatılabilir.
+Claude Code, üçüncü taraf eklentileri sen açmadıkça kendiliğinden güncellemez: `/plugin` komutunu
+çalıştır, **Marketplaces** sekmesinde `agent-crew`'u seç ve **Enable auto-update**'i seç. Claude Code
+ilk mesajından bir süre sonra kontrol eder ve `/reload-plugins` çalıştırmanı (ya da yeni oturum
+açmanı) ister. Yalnızca yeni bir `version` güncelleme sayılır.
 
-`/plugin update agent-crew@agent-crew`, ardından yeni bir oturum başlat. Oturum başında eklenti her ekip
+Otomatik güncelleme kapalıyken eklenti, bir ekip projesinde günde bir kez GitHub'da yeni sürüm olup
+olmadığına bakar ve varsa bildirim gösterir: yayımlanmış `plugin.json` tek seferlik okunur, hiçbir şey
+gönderilmez. Eklentinin *Check for updates* seçeneğiyle (`updateCheck`) kapatılabilir.
+
+Elle güncellemek için terminalde `claude plugin update agent-crew@agent-crew` çalıştır (ya da `/plugin` →
+**Installed** → Agent Crew → **Update now**), ardından yeni bir oturum başlat. Oturum başında eklenti her ekip
 projesinin `.crew/bin/` klasörünü kurulu sürüme getirir (`tools/sync_bin.py`) ve hangi dosyaların
 değiştiğini söyler; bunları commit'le. Projede elle düzenlediğin bir script olduğu gibi bırakılır ve
 bildirimde adı geçer. Bir ajan koşusu sürerken hiçbir şey değiştirilmez. Proje bazında kapatmak için
