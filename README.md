@@ -129,7 +129,7 @@ Codex updates Agent Crew by itself: each time Codex starts, it refreshes Git mar
 background and reinstalls the plugin from the newest `main`. The new version is used from the next
 session. To update right away, run `codex plugin marketplace upgrade agent-crew` and start a new
 session. To stay on one release instead, add the marketplace pinned to a tag:
-`codex plugin marketplace add badblli/agent-crew --ref v0.5.5`. The trusted hook refreshes the
+`codex plugin marketplace add badblli/agent-crew --ref v0.5.6`. The trusted hook refreshes the
 project's crew scripts and roles.
 
 ## Updating Claude Code

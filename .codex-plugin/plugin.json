@@ -1,6 +1,6 @@
 {
   "name": "agent-crew",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "description": "Lead a named crew of coding agents with work packages, isolated worktrees, reviews, and a shared board.",
   "author": { "name": "badblli" },
   "homepage": "https://github.com/badblli/agent-crew",
