@@ -130,7 +130,7 @@ Codex, Agent Crew'u kendisi günceller: her açılışta Git marketplace'lerini 
 eklentiyi `main`'in en yeni hâlinden yeniden kurar. Yeni sürüm bir sonraki oturumda kullanılır. Hemen
 güncellemek için `codex plugin marketplace upgrade agent-crew` komutunu çalıştır ve yeni bir oturum aç.
 Tek bir sürümde kalmak istersen marketplace'i bir etikete sabitleyerek ekle:
-`codex plugin marketplace add badblli/agent-crew --ref v0.5.5`. Onaylanan hook, projenin ekip
+`codex plugin marketplace add badblli/agent-crew --ref v0.5.6`. Onaylanan hook, projenin ekip
 script'lerini ve rollerini günceller.
 
 ## Claude Code eklentisini güncelleme
