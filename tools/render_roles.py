@@ -2,17 +2,26 @@
 """Render shared roles into native Claude and Codex agent files (stdlib only).
 
 Usage: python <plugin>/tools/render_roles.py --project . --engines claude,codex
-Local edits are preserved and named. The last rendered hashes live in
-.crew/roles-rendered.json; an existing file without a matching hash is also preserved.
+Each roster agent in <planDir>/team.json becomes crew-<agent id>, rendered from
+templates/roles/<roleFile>.md (without roleFile: the agent id's role file, else
+developer); lead helpers such as reviewer are rendered too. Local edits are preserved and named. The last rendered hashes
+live in .crew/roles-rendered.json; an existing file without a matching hash is also
+preserved. Files rendered under names no longer used are reported once and never deleted.
 """
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parent.parent
 ROLES = PLUGIN / "templates" / "roles"
+TEMPLATE_TEAM = PLUGIN / "templates" / "plan" / "team.json"
 ENGINES = {"claude", "codex"}
+# Roles the lead uses itself as native subagents; they are not roster agents on the board.
+LEAD_HELPERS = ("reviewer",)
+DEFAULT_ROLE = "developer"
+SAFE_NAME = re.compile(r"[a-z0-9][a-z0-9_-]*")
 FALLBACK_PREAMBLE = """# Fallback lead (Codex)
 
 You are the fallback lead. Read `.crew/config.json` and `<planDir>/handoff.md` first.
@@ -77,13 +86,47 @@ def read_role(path: Path) -> tuple[dict, str]:
     return meta, body.strip() + "\n"
 
 
-def render(meta: dict, body: str, engine: str, routing: dict) -> bytes:
-    name = "crew-" + meta["name"]
+def roster(project: Path, config: dict) -> list[dict]:
+    """The project's roster; projects without a team.json fall back to the template roster."""
+    team = project / config.get("planDir", ".crew/plan") / "team.json"
+    if not team.is_file():
+        team = TEMPLATE_TEAM
+    return json.loads(team.read_text(encoding="utf-8")).get("agents", [])
+
+
+def role_sources(agents: list[dict]) -> list[tuple[str, str, Path]]:
+    """(rendered name, description prefix, role file) per roster agent, then lead helpers."""
+    available = ", ".join(sorted(p.stem for p in ROLES.glob("*.md")))
+    sources: dict[str, tuple[str, str, Path]] = {}
+    for agent in agents:
+        agent_id = str(agent.get("id", ""))
+        if not SAFE_NAME.fullmatch(agent_id):
+            raise ValueError(f"team.json: agent id {agent_id!r} must use lowercase letters, digits, - or _")
+        if "roleFile" in agent:
+            role = str(agent["roleFile"])
+            if not SAFE_NAME.fullmatch(role) or not (ROLES / f"{role}.md").is_file():
+                raise ValueError(f"team.json: agent {agent_id!r} has roleFile {role!r}, but "
+                                 f"templates/roles/{role}.md does not exist; set roleFile to one of: {available}")
+        else:
+            # Rosters written before roleFile existed (builder, api, custom ids) keep rendering:
+            # the id's own role file when there is one, otherwise the general implementer role.
+            role = agent_id if (ROLES / f"{agent_id}.md").is_file() else DEFAULT_ROLE
+        src = ROLES / f"{role}.md"
+        label = agent.get("name") or agent_id
+        prefix = f"{label} ({agent['role']}): " if agent.get("role") else f"{label}: "
+        sources[agent_id] = (agent_id, prefix, src)
+    for helper in LEAD_HELPERS:
+        sources.setdefault(helper, (helper, "Lead helper: ", ROLES / f"{helper}.md"))
+    return list(sources.values())
+
+
+def render(name: str, description: str, meta: dict, body: str, engine: str, routing: dict) -> bytes:
+    name = "crew-" + name
     tier = routing["claude_tiers" if engine == "claude" else "tiers"][meta["tier"]]
     # JSON strings are valid YAML and TOML basic strings, including escaped multiline bodies.
     quote = lambda value: json.dumps(value, ensure_ascii=False)
     if engine == "claude":
-        lines = ["---", f"name: {quote(name)}", f"description: {quote(meta['description'])}",
+        lines = ["---", f"name: {quote(name)}", f"description: {quote(description)}",
                  f"model: {quote(tier['model'])}"]
         if tier.get("effort"):
             lines.append(f"effort: {quote(tier['effort'])}")
@@ -91,7 +134,7 @@ def render(meta: dict, body: str, engine: str, routing: dict) -> bytes:
             lines.append("tools: Read, Glob, Grep")
         lines += ["disallowedTools: Agent", "---", body]
         return ("\n".join(lines)).encode("utf-8")
-    fields = {"name": name, "description": meta["description"], "developer_instructions": body,
+    fields = {"name": name, "description": description, "developer_instructions": body,
               "model": tier["model"], "model_reasoning_effort": tier["effort"]}
     return ("\n".join(f"{k} = {quote(v)}" for k, v in fields.items()) + "\n").encode("utf-8")
 
@@ -107,15 +150,23 @@ def sync(project: Path, engines: list[str] | None = None) -> dict:
     hashes = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else {}
     # Prepare everything before writing so invalid role/model data cannot leave a partial render.
     prepared = []
-    for src in sorted(ROLES.glob("*.md")):
+    for name, prefix, src in role_sources(roster(project, config)):
         meta, body = read_role(src)
         for engine in dict.fromkeys(engines):
             suffix = "md" if engine == "claude" else "toml"
-            rel = f".{engine}/agents/crew-{meta['name']}.{suffix}"
-            prepared.append((rel, render(meta, body, engine, routing)))
+            rel = f".{engine}/agents/crew-{name}.{suffix}"
+            prepared.append((rel, render(name, prefix + meta["description"], meta, body, engine, routing)))
     if "codex" in config.get("engines", []):
         prepared.append((".agents/skills/crew-lead/SKILL.md", render_lead(config.get("lead", "claude"))))
-    result = {"added": [], "updated": [], "kept": []}
+    # Earlier renders under names that are no longer produced (e.g. crew-developer before
+    # ac11): report them once and drop their hash, but leave the files for the user to remove.
+    rendered = {rel for rel, _ in prepared}
+    agent_dirs = tuple(f".{engine}/agents/crew-" for engine in engines)
+    legacy = sorted(rel for rel in hashes
+                    if rel.startswith(agent_dirs) and rel not in rendered and (project / rel).exists())
+    for rel in legacy:
+        del hashes[rel]
+    result = {"added": [], "updated": [], "kept": [], "legacy": legacy}
     for rel, data in prepared:
         dest = project / rel
         if dest.exists():
@@ -145,10 +196,11 @@ def main() -> None:
         result = sync(args.project.resolve(), args.engines.split(",") if args.engines else None)
     except (OSError, ValueError, KeyError) as exc:
         parser.exit(1, f"render_roles: {exc}\n")
+    labels = {"kept": "Changed in this project, left as is",
+              "legacy": "No longer rendered (old role names), left in place; delete when unused"}
     for action, paths in result.items():
         if paths:
-            label = "Changed in this project, left as is" if action == "kept" else action.capitalize()
-            print(f"{label}: {', '.join(paths)}")
+            print(f"{labels.get(action, action.capitalize())}: {', '.join(paths)}")
     if not any(result.values()):
         print("Roles are up to date.")
 

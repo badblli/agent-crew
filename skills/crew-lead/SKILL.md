@@ -46,7 +46,8 @@ Claude workers; default `auto` allows the worker to run WP test commands. `accep
 only auto-accepts file edits and leaves Bash denied in a headless `-p` run.
 
 Shared role sources are rendered with `tools/render_roles.py` from the plugin into native
-`.claude/agents/` and/or `.codex/agents/` definitions. They do not replace the WP runner or the
+`.claude/agents/` and/or `.codex/agents/` definitions: `crew-<agent id>` per roster agent from its
+`roleFile`, plus `crew-reviewer` as your read-only review helper. They do not replace the WP runner or the
 parent's permission policy. `AGENTS.md` is the short common core, imported by `CLAUDE.md`;
 consult `rule.md`, `feature.md` and relevant `docs/adr/` on demand. Workers do not read plan/history/handoff,
 notes or completed-WP archives unless the assigned WP links them.

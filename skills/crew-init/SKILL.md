@@ -60,7 +60,10 @@ Find the plugin root from this skill's own path, `<plugin root>/skills/crew-init
    - Render roles from the plugin's single source:
      `python <plugin root>/tools/render_roles.py --project . --engines <comma-separated engines>`.
      Claude-only writes `.claude/agents/crew-*.md`; Codex-only writes `.codex/agents/crew-*.toml`;
-     both writes both sets. The renderer uses the project's models.json and records hashes in
+     both writes both sets. Each `team.json` agent gets `crew-<agent id>` rendered from
+     `templates/roles/<roleFile>.md` (without `roleFile`: the id's role file, else `developer`;
+     Builder and Connector use `developer`); `crew-reviewer` is a lead helper, not a roster agent. The renderer uses the
+     project's models.json and records hashes in
      `.crew/roles-rendered.json`; keep that manifest so future renders preserve edited files.
      With Codex enabled it also renders `.agents/skills/crew-lead/SKILL.md` with full lead rules
      for `lead: codex` or fallback rules for `lead: claude`, with the same edit protection.
